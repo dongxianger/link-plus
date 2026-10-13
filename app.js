@@ -7,7 +7,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const realTransferInput = document.getElementById('real-transfer-input');
     const realPhotoInput = document.getElementById('real-photo-input');
 
-    // Link + 全球公网 STUN 服务器配置（用于跨网 P2P 穿透打洞）
     const rtcConfig = {
         iceServers: [
             { urls: 'stun:stun.l.google.com:19302' },
@@ -18,9 +17,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let peerConnection = null;
     let localStream = null;
-    let currentFacingMode = 'user'; // 'user' 前置, 'environment' 后置
+    let currentFacingMode = 'user';
 
-    // 1. 加号面板开关
     if (plusBtn && plusPanel) {
         plusBtn.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -43,7 +41,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // 2. 文本消息发送
     if (msgInput) {
         msgInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
@@ -75,7 +72,6 @@ document.addEventListener('DOMContentLoaded', () => {
         );
     }
 
-    // 3. 发文件
     const btnFile = document.getElementById('btn-file');
     if (btnFile) {
         btnFile.addEventListener('click', () => {
@@ -93,7 +89,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 4. 文件传输（批量大文件/电影）
     const btnTransfer = document.getElementById('btn-transfer');
     if (btnTransfer) {
         btnTransfer.addEventListener('click', () => {
@@ -107,13 +102,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const files = e.target.files;
             if (!files.length) return;
             for (let file of files) {
-                appendMessage(`[Link + P2P大文件传输] 📤 ${file.name} (${(file.size / (1024 * 1024)).toFixed(2)} MB) 准备就绪`, 'me');
+                appendMessage(`[Link + P2P传输] 📤 ${file.name} (${(file.size / (1024 * 1024)).toFixed(2)} MB) 准备就绪`, 'me');
             }
             realTransferInput.value = '';
         });
     }
 
-    // 5. 发照片
     const btnPhoto = document.getElementById('btn-photo');
     if (btnPhoto) {
         btnPhoto.addEventListener('click', () => {
@@ -135,10 +129,11 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 6. 视频通话（完美修复：前后摄像头正反转切换、完美悬浮自由拖拽、挂断、STUN 打洞）
+    // 视频通话：微型精简按钮（翻转、全屏缩放、挂断）+ 完美可拖拽悬浮窗
     const btnVideo = document.getElementById('btn-video');
     let activeVideoContainer = null;
     let videoElementRef = null;
+    let isFullscreen = false;
 
     if (btnVideo) {
         btnVideo.addEventListener('click', async () => {
@@ -150,12 +145,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function startVideoCall(facingMode) {
         try {
-            // 关闭旧轨道
             if (localStream) {
                 localStream.getTracks().forEach(track => track.stop());
             }
 
-            // 获取指定摄像头（前置/后置）
             localStream = await navigator.mediaDevices.getUserMedia({ 
                 video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: { exact: facingMode } }, 
                 audio: { echoCancellation: true, noiseSuppression: true } 
@@ -199,21 +192,34 @@ document.addEventListener('DOMContentLoaded', () => {
             videoElement.muted = true;
             videoElementRef = videoElement;
 
+            // 微型控制栏（微信风格图标）
             const controlsDiv = document.createElement('div');
             controlsDiv.className = 'video-controls';
 
             const switchBtn = document.createElement('button');
             switchBtn.className = 'video-ctrl-btn';
-            switchBtn.innerText = '🔄 翻转镜头';
+            switchBtn.title = '翻转镜头';
+            switchBtn.innerText = '🔄';
             switchBtn.onclick = async (e) => {
                 e.stopPropagation();
                 currentFacingMode = (currentFacingMode === 'user') ? 'environment' : 'user';
                 await startVideoCall(currentFacingMode);
             };
 
+            const fullScreenBtn = document.createElement('button');
+            fullScreenBtn.className = 'video-ctrl-btn';
+            fullScreenBtn.title = '全屏/还原';
+            fullScreenBtn.innerText = '⛶';
+            fullScreenBtn.onclick = (e) => {
+                e.stopPropagation();
+                isFullscreen = !isFullscreen;
+                videoContainer.classList.toggle('fullscreen', isFullscreen);
+            };
+
             const hangupBtn = document.createElement('button');
             hangupBtn.className = 'video-ctrl-btn hangup';
-            hangupBtn.innerText = '❌ 挂断';
+            hangupBtn.title = '挂断';
+            hangupBtn.innerText = '✕';
             hangupBtn.onclick = (e) => {
                 e.stopPropagation();
                 cleanupVideoCall();
@@ -221,37 +227,33 @@ document.addEventListener('DOMContentLoaded', () => {
             };
 
             controlsDiv.appendChild(switchBtn);
+            controlsDiv.appendChild(fullScreenBtn);
             controlsDiv.appendChild(hangupBtn);
 
             videoContainer.appendChild(videoElement);
             videoContainer.appendChild(controlsDiv);
 
-            // 完美的悬浮窗双向拖拽算法（完美解决触控和鼠标位移卡顿）
+            // 悬浮窗拖拽交互
             let isDragging = false;
             let startX = 0, startY = 0;
             let xOffset = 0, yOffset = 0;
 
             function dragStart(e) {
-                if (e.target.tagName === 'BUTTON' || e.target.closest('.video-controls')) return;
-                
+                if (isFullscreen || e.target.tagName === 'BUTTON' || e.target.closest('.video-controls')) return;
                 const clientX = e.touches ? e.touches[0].clientX : e.clientX;
                 const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-                
                 startX = clientX - xOffset;
                 startY = clientY - yOffset;
                 isDragging = true;
             }
 
             function drag(e) {
-                if (!isDragging) return;
+                if (!isDragging || isFullscreen) return;
                 e.preventDefault();
-                
                 const clientX = e.touches ? e.touches[0].clientX : e.clientX;
                 const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-                
                 xOffset = clientX - startX;
                 yOffset = clientY - startY;
-
                 videoContainer.style.transform = `translate3d(${xOffset}px, ${yOffset}px, 0)`;
             }
 
@@ -297,10 +299,10 @@ document.addEventListener('DOMContentLoaded', () => {
             activeVideoContainer.remove();
             activeVideoContainer = null;
             videoElementRef = null;
+            isFullscreen = false;
         }
     }
 
-    // 7. 打电话
     const btnVoice = document.getElementById('btn-voice');
     if (btnVoice) {
         btnVoice.addEventListener('click', async () => {
@@ -309,7 +311,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 await navigator.mediaDevices.getUserMedia({ 
                     audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } 
                 });
-                appendMessage(`[Link + 语音通话] 📞 全球 P2P 语音通道已激活（STUN 穿透准备就绪）`, 'me');
+                appendMessage(`[Link + 语音通话] 📞 全球 P2P 语音通道已激活`, 'me');
             } catch (err) {
                 alert(`无法调用麦克风: ${err.message}`);
             }
