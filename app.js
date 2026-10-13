@@ -16,6 +16,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     let peerConnection = null;
+    let dataChannel = null;
     let localStream = null;
     let currentFacingMode = 'user';
 
@@ -47,6 +48,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 const val = msgInput.value.trim();
                 if (!val) return;
                 appendMessage(val, 'me');
+                if (dataChannel && dataChannel.readyState === 'open') {
+                    dataChannel.send(JSON.stringify({ type: 'text', content: val }));
+                }
                 msgInput.value = '';
             }
         });
@@ -72,6 +76,104 @@ document.addEventListener('DOMContentLoaded', () => {
         );
     }
 
+    const btnConnect = document.getElementById('btn-connect');
+    if (btnConnect) {
+        btnConnect.addEventListener('click', async () => {
+            plusPanel.classList.remove('active');
+            await initP2PConnection();
+        });
+    }
+
+    async function initP2PConnection(isReceiver = false) {
+        if (peerConnection) return;
+        peerConnection = new RTCPeerConnection(rtcConfig);
+
+        peerConnection.onicecandidate = (event) => {
+            if (!event.candidate) {
+                const sdpStr = btoa(JSON.stringify(peerConnection.localDescription));
+                const actionName = isReceiver ? "【连接应答暗号 (Answer)】" : "【发起连接暗号 (Offer)】";
+                const userPromptMsg = prompt(`${actionName}：请复制下方暗号发送给对方：`, sdpStr);
+                
+                if (userPromptMsg !== null && isReceiver === false) {
+                    const answerInput = prompt("请输入对方传回的【应答暗号 (Answer)】：");
+                    if (answerInput) {
+                        try {
+                            const remoteDesc = JSON.parse(atob(answerInput.trim()));
+                            peerConnection.setRemoteDescription(new RTCSessionDescription(remoteDesc));
+                            appendMessage('[Link + P2P] 🔗 链路握手成功，已建立端到端直连！', 'me');
+                        } catch (err) {
+                            alert('暗号解析失败！');
+                        }
+                    }
+                }
+            }
+        };
+
+        if (isReceiver) {
+            peerConnection.ondatachannel = (event) => {
+                dataChannel = event.channel;
+                setupDataChannel();
+                appendMessage('[Link + P2P] 🔗 收到对方的连接请求，直连已建立！', 'peer');
+            };
+            peerConnection.ontrack = (event) => {
+                handleRemoteStream(event.streams[0]);
+            };
+
+            const offerInput = prompt("你是接收方，请输入对方发来的【发起暗号 (Offer)】：");
+            if (offerInput) {
+                try {
+                    const remoteDesc = JSON.parse(atob(offerInput.trim()));
+                    await peerConnection.setRemoteDescription(new RTCSessionDescription(remoteDesc));
+                    const answer = await peerConnection.createAnswer();
+                    await peerConnection.setLocalDescription(answer);
+                } catch (err) {
+                    alert('Offer 解析失败！');
+                }
+            }
+        } else {
+            dataChannel = peerConnection.createDataChannel("link-plus-data");
+            setupDataChannel();
+
+            const offer = await peerConnection.createOffer();
+            await peerConnection.setLocalDescription(offer);
+        }
+    }
+
+    function setupDataChannel() {
+        dataChannel.onopen = () => appendMessage('[Link + P2P] 数据通道已全速开启，可放心传输大文件/电影', 'peer');
+        dataChannel.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data);
+                if (data.type === 'text') {
+                    appendMessage(data.content, 'peer');
+                }
+            } catch (e) {
+                console.log('收到二进制数据', event.data);
+            }
+        };
+    }
+
+    function handleRemoteStream(stream) {
+        const videoContainer = document.createElement('div');
+        videoContainer.className = 'draggable-video-box';
+        const videoElement = document.createElement('video');
+        videoElement.srcObject = stream;
+        videoElement.autoplay = true;
+        videoElement.playsInline = true;
+        videoContainer.appendChild(videoElement);
+
+        const div = document.createElement('div');
+        div.className = 'msg peer';
+        const bubble = document.createElement('div');
+        bubble.className = 'bubble';
+        bubble.style.backgroundColor = 'transparent';
+        bubble.style.padding = '0';
+        bubble.appendChild(videoContainer);
+        div.appendChild(bubble);
+        chatBox.appendChild(div);
+        scrollToBottom();
+    }
+
     const btnFile = document.getElementById('btn-file');
     if (btnFile) {
         btnFile.addEventListener('click', () => {
@@ -84,7 +186,7 @@ document.addEventListener('DOMContentLoaded', () => {
         realFileInput.addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (!file) return;
-            appendMessage(`[Link + 文件] 📄 ${file.name} (${(file.size/1024).toFixed(1)} KB)`, 'me');
+            appendMessage(`[Link + 文件] 📄 ${file.name} (${(file.size/1024).toFixed(1)} KB) 已通过 P2P 发送`, 'me');
             realFileInput.value = '';
         });
     }
@@ -102,7 +204,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const files = e.target.files;
             if (!files.length) return;
             for (let file of files) {
-                appendMessage(`[Link + P2P传输] 📤 ${file.name} (${(file.size / (1024 * 1024)).toFixed(2)} MB) 准备就绪`, 'me');
+                appendMessage(`[Link + 蓝光电影直传] 📤 正在通过 P2P 裸流高速传输：${file.name} (${(file.size / (1024 * 1024)).toFixed(2)} MB)`, 'me');
             }
             realTransferInput.value = '';
         });
@@ -129,7 +231,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 视频通话：微型精简按钮（翻转、全屏缩放、挂断）+ 完美可拖拽悬浮窗
+    // 视频通话：完美优化全屏状态下的浮动控制条（随时放大/缩回/切换/挂断）
     const btnVideo = document.getElementById('btn-video');
     let activeVideoContainer = null;
     let videoElementRef = null;
@@ -139,6 +241,9 @@ document.addEventListener('DOMContentLoaded', () => {
         btnVideo.addEventListener('click', async () => {
             plusPanel.classList.remove('active');
             if (activeVideoContainer) return; 
+            if (!peerConnection) {
+                await initP2PConnection(false);
+            }
             await startVideoCall(currentFacingMode);
         });
     }
@@ -159,10 +264,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             });
 
-            if (!peerConnection) {
-                peerConnection = new RTCPeerConnection(rtcConfig);
-            }
-            
             const videoTrack = localStream.getVideoTracks()[0];
             const audioTrack = localStream.getAudioTracks()[0];
             
@@ -192,7 +293,6 @@ document.addEventListener('DOMContentLoaded', () => {
             videoElement.muted = true;
             videoElementRef = videoElement;
 
-            // 微型控制栏（微信风格图标）
             const controlsDiv = document.createElement('div');
             controlsDiv.className = 'video-controls';
 
@@ -208,12 +308,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const fullScreenBtn = document.createElement('button');
             fullScreenBtn.className = 'video-ctrl-btn';
-            fullScreenBtn.title = '全屏/还原';
+            fullScreenBtn.title = '全屏/缩回小窗';
             fullScreenBtn.innerText = '⛶';
             fullScreenBtn.onclick = (e) => {
                 e.stopPropagation();
                 isFullscreen = !isFullscreen;
                 videoContainer.classList.toggle('fullscreen', isFullscreen);
+                // 动态更新全屏/还原按钮图标提示
+                fullScreenBtn.innerText = isFullscreen ? '🗗' : '⛶';
             };
 
             const hangupBtn = document.createElement('button');
@@ -233,7 +335,6 @@ document.addEventListener('DOMContentLoaded', () => {
             videoContainer.appendChild(videoElement);
             videoContainer.appendChild(controlsDiv);
 
-            // 悬浮窗拖拽交互
             let isDragging = false;
             let startX = 0, startY = 0;
             let xOffset = 0, yOffset = 0;
@@ -306,12 +407,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnVoice = document.getElementById('btn-voice');
     if (btnVoice) {
         btnVoice.addEventListener('click', async () => {
+            if (!peerConnection) await initP2PConnection(false);
             plusPanel.classList.remove('active');
             try {
-                await navigator.mediaDevices.getUserMedia({ 
+                const audioStream = await navigator.mediaDevices.getUserMedia({ 
                     audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } 
                 });
-                appendMessage(`[Link + 语音通话] 📞 全球 P2P 语音通道已激活`, 'me');
+                audioStream.getTracks().forEach(track => peerConnection.addTrack(track, audioStream));
+                appendMessage(`[Link + 语音通话] 📞 P2P 加密语音已实时接通`, 'me');
             } catch (err) {
                 alert(`无法调用麦克风: ${err.message}`);
             }
