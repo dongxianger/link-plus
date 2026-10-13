@@ -1,73 +1,127 @@
-class ChatApp {
-    constructor() {
-        this.initDOM();
-        this.bindEvents();
-    }
+document.addEventListener('DOMContentLoaded', () => {
+    const chatBox = document.getElementById('chat-box');
+    const msgInput = document.getElementById('msg-input');
+    const plusBtn = document.getElementById('plus-btn');
+    const plusPanel = document.getElementById('plus-panel');
+    const realFileInput = document.getElementById('real-file-input');
+    const realPhotoInput = document.getElementById('real-photo-input');
 
-    initDOM() {
-        this.chatBox = document.getElementById('chat-box');
-        this.msgInput = document.getElementById('msg-input');
-        this.plusBtn = document.getElementById('plus-btn');
-        this.plusPanel = document.getElementById('plus-panel');
-        this.backBtn = document.getElementById('back-btn');
-        this.moreBtn = document.getElementById('more-btn');
-    }
-
-    bindEvents() {
-        // 切换加号面板
-        this.plusBtn.addEventListener('click', () => {
-            this.plusPanel.classList.toggle('active');
-            this.scrollToBottom();
+    // 1. 加号面板开关
+    if (plusBtn && plusPanel) {
+        plusBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            plusPanel.classList.toggle('active');
+            chatBox.scrollTop = chatBox.scrollHeight;
         });
+    }
 
-        // 顶部按钮点击事件
-        this.backBtn.addEventListener('click', () => alert('返回上一页'));
-        this.moreBtn.addEventListener('click', () => alert('更多设置选项'));
-
-        // 输入框回车发送
-        this.msgInput.addEventListener('keydown', (e) => {
+    // 2. 文本输入回车发送
+    if (msgInput) {
+        msgInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
-                this.sendText();
+                const val = msgInput.value.trim();
+                if (!val) return;
+                appendMessage(val, 'me');
+                msgInput.value = '';
             }
         });
+    }
 
-        // 宫格面板各项点击事件绑定
-        const gridItems = this.plusPanel.querySelectorAll('.grid-item');
-        gridItems.forEach(item => {
-            item.addEventListener('click', () => {
-                const actionName = item.getAttribute('data-action');
-                this.handleGridAction(actionName);
-            });
+    function appendMessage(content, sender, isHtml = false) {
+        const div = document.createElement('div');
+        div.className = `msg ${sender}`;
+        div.innerHTML = `<div class="bubble">${isHtml ? content : escapeHtml(content)}</div>`;
+        chatBox.appendChild(div);
+        chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    function escapeHtml(str) {
+        return str.replace(/[&<>'"]/g, 
+            tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+        );
+    }
+
+    // 3. 发文件
+    const btnFile = document.getElementById('btn-file');
+    if (btnFile) {
+        btnFile.addEventListener('click', () => {
+            plusPanel.classList.remove('active');
+            realFileInput.click();
         });
     }
 
-    // 发送文字消息逻辑
-    sendText() {
-        const val = this.msgInput.value.trim();
-        if (!val) return;
-
-        const div = document.createElement('div');
-        div.className = 'msg me';
-        div.innerHTML = `<div class="bubble">${val}</div>`;
-        this.chatBox.appendChild(div);
-
-        this.msgInput.value = '';
-        this.scrollToBottom();
+    if (realFileInput) {
+        realFileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            appendMessage(`[文件传输] 📄 ${file.name} (${(file.size/1024).toFixed(1)} KB)`, 'me');
+            realFileInput.value = '';
+        });
     }
 
-    // 处理宫格面板功能
-    handleGridAction(actionName) {
-        alert(`触发核心功能: ${actionName}`);
-        this.plusPanel.classList.remove('active'); // 点击后收起面板
+    // 4. 发照片
+    const btnPhoto = document.getElementById('btn-photo');
+    if (btnPhoto) {
+        btnPhoto.addEventListener('click', () => {
+            plusPanel.classList.remove('active');
+            realPhotoInput.click();
+        });
     }
 
-    // 滚动条保持最底部
-    scrollToBottom() {
-        this.chatBox.scrollTop = this.chatBox.scrollHeight;
+    if (realPhotoInput) {
+        realPhotoInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                appendMessage(`<img src="${evt.target.result}" alt="图片" style="max-width:100%; border-radius:4px; display:block;">`, 'me', true);
+            };
+            reader.readAsDataURL(file);
+            realPhotoInput.value = '';
+        });
     }
-}
 
-// 页面加载完成后实例化应用
-document.addEventListener('DOMContentLoaded', () => {
-    window.app = new ChatApp();
+    // 5. 打视频（实时渲染摄像头画面）
+    const btnVideo = document.getElementById('btn-video');
+    if (btnVideo) {
+        btnVideo.addEventListener('click', async () => {
+            plusPanel.classList.remove('active');
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                const videoElement = document.createElement('video');
+                videoElement.srcObject = stream;
+                videoElement.autoplay = true;
+                videoElement.playsInline = true;
+                videoElement.style.width = '100%';
+                videoElement.style.maxHeight = '200px';
+                videoElement.style.borderRadius = '4px';
+                videoElement.style.objectFit = 'cover';
+
+                const div = document.createElement('div');
+                div.className = 'msg me';
+                const bubble = document.createElement('div');
+                bubble.className = 'bubble';
+                bubble.appendChild(videoElement);
+                div.appendChild(bubble);
+                chatBox.appendChild(div);
+                chatBox.scrollTop = chatBox.scrollHeight;
+            } catch (err) {
+                alert(`无法调用摄像头: ${err.message}`);
+            }
+        });
+    }
+
+    // 6. 打电话
+    const btnVoice = document.getElementById('btn-voice');
+    if (btnVoice) {
+        btnVoice.addEventListener('click', async () => {
+            plusPanel.classList.remove('active');
+            try {
+                await navigator.mediaDevices.getUserMedia({ audio: true });
+                appendMessage(`[语音通话] 📞 麦克风已成功激活并接入`, 'me');
+            } catch (err) {
+                alert(`无法调用麦克风: ${err.message}`);
+            }
+        });
+    }
 });
