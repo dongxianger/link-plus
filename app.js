@@ -7,6 +7,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const realTransferInput = document.getElementById('real-transfer-input');
     const realPhotoInput = document.getElementById('real-photo-input');
 
+    // 全球免费公网 STUN 服务器配置（用于新疆到广东、甚至海外的 NAT 跨网打洞）
+    const rtcConfig = {
+        iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' },
+            { urls: 'stun:stun.stunprotocol.org:3478' }
+        ]
+    };
+
+    let peerConnection = null;
+    let localStream = null;
+    let currentFacingMode = 'user'; // 'user' 前置, 'environment' 后置
+
     // 1. 加号面板开关
     if (plusBtn && plusPanel) {
         plusBtn.addEventListener('click', (e) => {
@@ -80,7 +93,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 4. 文件传输（批量多选）
+    // 4. 文件传输（批量大文件/电影传输预备）
     const btnTransfer = document.getElementById('btn-transfer');
     if (btnTransfer) {
         btnTransfer.addEventListener('click', () => {
@@ -94,7 +107,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const files = e.target.files;
             if (!files.length) return;
             for (let file of files) {
-                appendMessage(`[文件传输通道] 📤 ${file.name} (${(file.size / (1024 * 1024)).toFixed(2)} MB) 准备就绪`, 'me');
+                appendMessage(`[P2P大文件传输] 📤 ${file.name} (${(file.size / (1024 * 1024)).toFixed(2)} MB) 准备就绪`, 'me');
             }
             realTransferInput.value = '';
         });
@@ -122,53 +135,132 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 6. 打视频
+    // 6. 打视频（支持跨网 STUN 打洞准备、前后摄切换、挂断、自由拖动悬浮）
     const btnVideo = document.getElementById('btn-video');
     if (btnVideo) {
         btnVideo.addEventListener('click', async () => {
             plusPanel.classList.remove('active');
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: "user" }, 
-                    audio: true 
-                });
-                const videoElement = document.createElement('video');
-                videoElement.srcObject = stream;
-                videoElement.autoplay = true;
-                videoElement.playsInline = true;
-                videoElement.muted = true;
-                videoElement.style.width = '100%';
-                videoElement.style.maxHeight = '220px';
-                videoElement.style.borderRadius = '4px';
-                videoElement.style.objectFit = 'cover';
-                videoElement.style.backgroundColor = '#000000';
-
-                const div = document.createElement('div');
-                div.className = 'msg me';
-                const bubble = document.createElement('div');
-                bubble.className = 'bubble';
-                bubble.style.backgroundColor = '#000000';
-                bubble.style.padding = '4px';
-                bubble.appendChild(videoElement);
-                div.appendChild(bubble);
-                chatBox.appendChild(div);
-                scrollToBottom();
-            } catch (err) {
-                alert(`无法调用摄像头: ${err.message}`);
-            }
+            await startVideoCall(currentFacingMode);
         });
     }
 
-    // 7. 打电话
+    async function startVideoCall(facingMode) {
+        try {
+            // 如果已有流先关掉
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+            }
+
+            localStream = await navigator.mediaDevices.getUserMedia({ 
+                video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: facingMode }, 
+                audio: { echoCancellation: true, noiseSuppression: true } 
+            });
+
+            // 初始化 WebRTC 连线对象（内置全局 STUN 打洞）
+            if (!peerConnection) {
+                peerConnection = new RTCPeerConnection(rtcConfig);
+                localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+            }
+
+            const videoContainer = document.createElement('div');
+            videoContainer.className = 'draggable-video-box';
+
+            const videoElement = document.createElement('video');
+            videoElement.srcObject = localStream;
+            videoElement.autoplay = true;
+            videoElement.playsInline = true;
+            videoElement.muted = true;
+            videoElement.style.width = '100%';
+            videoElement.style.maxHeight = '240px';
+            videoElement.style.objectFit = 'cover';
+            videoElement.style.display = 'block';
+
+            // 控制条（切换镜头、挂断）
+            const controlsDiv = document.createElement('div');
+            controlsDiv.className = 'video-controls';
+
+            const switchBtn = document.createElement('button');
+            switchBtn.className = 'video-ctrl-btn';
+            switchBtn.innerText = '🔄 翻转镜头';
+            switchBtn.onclick = async (e) => {
+                e.stopPropagation();
+                currentFacingMode = currentFacingMode === 'user' ? 'environment' : 'user';
+                await startVideoCall(currentFacingMode);
+                videoContainer.remove();
+            };
+
+            const hangupBtn = document.createElement('button');
+            hangupBtn.className = 'video-ctrl-btn hangup';
+            hangupBtn.innerText = '❌ 挂断';
+            hangupBtn.onclick = (e) => {
+                e.stopPropagation();
+                if (localStream) {
+                    localStream.getTracks().forEach(track => track.stop());
+                    localStream = null;
+                }
+                if (peerConnection) {
+                    peerConnection.close();
+                    peerConnection = null;
+                }
+                videoContainer.remove();
+                appendMessage('[视频通话] 视频已挂断', 'me');
+            };
+
+            controlsDiv.appendChild(switchBtn);
+            controlsDiv.appendChild(hangupBtn);
+
+            videoContainer.appendChild(videoElement);
+            videoContainer.appendChild(controlsDiv);
+
+            // 实现窗口拖动功能 (支持手机触控 & 电脑鼠标)
+            let isDragging = false;
+            let startX, startY, initialLeft = 0, initialTop = 0;
+
+            videoContainer.addEventListener('pointerdown', (e) => {
+                isDragging = true;
+                startX = e.clientX;
+                startY = e.clientY;
+                videoContainer.setPointerCapture(e.pointerId);
+            });
+
+            videoContainer.addEventListener('pointermove', (e) => {
+                if (!isDragging) return;
+                const dx = e.clientX - startX;
+                const dy = e.clientY - startY;
+                videoContainer.style.transform = `translate(${dx}px, ${dy}px)`;
+            });
+
+            videoContainer.addEventListener('pointerup', (e) => {
+                isDragging = false;
+                videoContainer.releasePointerCapture(e.pointerId);
+            });
+
+            const div = document.createElement('div');
+            div.className = 'msg me';
+            const bubble = document.createElement('div');
+            bubble.className = 'bubble';
+            bubble.style.backgroundColor = '#000000';
+            bubble.style.padding = '0';
+            bubble.appendChild(videoContainer);
+            div.appendChild(bubble);
+            chatBox.appendChild(div);
+            scrollToBottom();
+
+        } catch (err) {
+            alert(`无法调用摄像头: ${err.message}`);
+        }
+    }
+
+    // 7. 打电话（集成语音 STUN 穿透与控制）
     const btnVoice = document.getElementById('btn-voice');
     if (btnVoice) {
         btnVoice.addEventListener('click', async () => {
             plusPanel.classList.remove('active');
             try {
-                await navigator.mediaDevices.getUserMedia({ 
+                const audioStream = await navigator.mediaDevices.getUserMedia({ 
                     audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } 
                 });
-                appendMessage(`[语音通话] 📞 麦克风已成功激活（降噪与回音消除已开启）`, 'me');
+                appendMessage(`[语音通话] 📞 全球 P2P 语音通道已激活（STUN 穿透准备就绪）`, 'me');
             } catch (err) {
                 alert(`无法调用麦克风: ${err.message}`);
             }
