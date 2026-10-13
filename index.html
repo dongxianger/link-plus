@@ -1,4 +1,3 @@
-cat << 'EOF' > index.html
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -18,7 +17,10 @@ cat << 'EOF' > index.html
             border-bottom: 1px solid #d8d8d8; display: flex;
             justify-content: space-between; align-items: center; padding: 0 16px; flex-shrink: 0;
         }
-        .wx-header .title { font-size: 1rem; font-weight: 500; }
+        .wx-header .title { font-size: 1rem; font-weight: 500; margin: 0; }
+        .header-btn { background: none; border: none; font-size: 1.2rem; cursor: pointer; color: #111; padding: 0; }
+        #more-btn { letter-spacing: 2px; }
+
         #chat-box {
             flex: 1; overflow-y: auto; padding: 16px;
             background-color: #ededed; display: flex; flex-direction: column; gap: 16px;
@@ -28,8 +30,8 @@ cat << 'EOF' > index.html
         .msg.peer { align-self: flex-start; align-items: flex-start; }
         .bubble { padding: 10px 14px; border-radius: 6px; font-size: 0.95rem; word-break: break-all; background-color: #95ec69; line-height: 1.4; }
         .msg.peer .bubble { background-color: #ffffff; }
-        
-        /* 底部输入区：精简后只剩输入框和加号 */
+        .bubble img { max-width: 100%; border-radius: 4px; display: block; }
+
         .wx-footer {
             background-color: #f7f7f7; border-top: 1px solid #d8d8d8;
             flex-shrink: 0; padding: 8px 12px; display: flex; align-items: center; gap: 10px; min-height: 56px;
@@ -39,8 +41,7 @@ cat << 'EOF' > index.html
             flex: 1; height: 38px; background: #ffffff; border: 1px solid #d8d8d8;
             border-radius: 4px; padding: 0 10px; font-size: 1rem; outline: none;
         }
-        
-        /* 加号抽屉面板（4个核心功能） */
+
         #plus-panel {
             display: none; background-color: #f7f7f7; border-top: 1px solid #d8d8d8;
             padding: 24px 16px; grid-template-columns: repeat(4, 1fr); gap: 16px; flex-shrink: 0;
@@ -57,54 +58,127 @@ cat << 'EOF' > index.html
 </head>
 <body>
 
-<div class="wx-header">
-    <div style="font-size: 1.2rem; cursor: pointer;" onclick="alert('返回')">‹</div>
-    <div class="title">文件传输助手</div>
-    <div style="font-size: 1.2rem; letter-spacing: 2px; cursor: pointer;" onclick="alert('更多')">•••</div>
-</div>
+<header class="wx-header">
+    <button class="header-btn" onclick="history.back()">‹</button>
+    <h1 class="title">文件传输助手</h1>
+    <button class="header-btn" id="more-btn" onclick="alert('P2P 连接状态：准备就绪')">•••</button>
+</header>
 
-<div id="chat-box">
+<main id="chat-box">
     <div class="msg peer">
-        <div class="bubble">已精简完成！去掉了话筒和笑脸，加号内仅保留：打视频、打电话、发文件、发照片。</div>
+        <div class="bubble">全功能底层已加载。点击加号可直接调用系统文件、相册及音视频。</div>
     </div>
-</div>
+</main>
 
-<div class="wx-footer">
-    <input type="text" id="msg-input" class="text-input" placeholder="" onkeydown="if(event.key==='Enter') sendMsg()">
-    <button class="icon-btn" onclick="togglePlusPanel()">➕</button>
-</div>
+<footer class="wx-footer">
+    <input type="text" id="msg-input" class="text-input" placeholder="" autocomplete="off">
+    <button class="icon-btn" id="plus-btn">➕</button>
+</footer>
 
 <nav id="plus-panel">
-    <div class="grid-item" onclick="triggerAction('打视频')"><div class="grid-icon">📹</div><div class="grid-label">打视频</div></div>
-    <div class="grid-item" onclick="triggerAction('打电话')"><div class="grid-icon">📞</div><div class="grid-label">打电话</div></div>
-    <div class="grid-item" onclick="triggerAction('发文件')"><div class="grid-icon">📁</div><div class="grid-label">发文件</div></div>
-    <div class="grid-item" onclick="triggerAction('发照片')"><div class="grid-icon">🖼️</div><div class="grid-label">发照片</div></div>
+    <div class="grid-item" id="btn-video"><div class="grid-icon">📹</div><span class="grid-label">打视频</span></div>
+    <div class="grid-item" id="btn-voice"><div class="grid-icon">📞</div><span class="grid-label">打电话</span></div>
+    <div class="grid-item" id="btn-file"><div class="grid-icon">📁</div><span class="grid-label">发文件</span></div>
+    <div class="grid-item" id="btn-photo"><div class="grid-icon">🖼️</div><span class="grid-label">发照片</span></div>
 </nav>
 
+<!-- 隐藏的真实文件/相册选择器 -->
+<input type="file" id="real-file-input" style="display: none;">
+<input type="file" id="real-photo-input" accept="image/*" style="display: none;">
+
 <script>
-    function togglePlusPanel() {
-        const panel = document.getElementById('plus-panel');
-        panel.classList.toggle('active');
-        const box = document.getElementById('chat-box');
-        box.scrollTop = box.scrollHeight;
-    }
-    function triggerAction(name) {
-        alert('准备执行核心动作: ' + name);
-        togglePlusPanel();
-    }
-    function sendMsg() {
-        const input = document.getElementById('msg-input');
-        const val = input.value.trim();
-        if (!val) return;
-        const box = document.getElementById('chat-box');
+    const chatBox = document.getElementById('chat-box');
+    const msgInput = document.getElementById('msg-input');
+    const plusBtn = document.getElementById('plus-btn');
+    const plusPanel = document.getElementById('plus-panel');
+    const realFileInput = document.getElementById('real-file-input');
+    const realPhotoInput = document.getElementById('real-photo-input');
+
+    // 1. 切换加号面板
+    plusBtn.addEventListener('click', () => {
+        plusPanel.classList.toggle('active');
+        chatBox.scrollTop = chatBox.scrollHeight;
+    });
+
+    // 2. 发送文本消息
+    msgInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            const val = msgInput.value.trim();
+            if (!val) return;
+            appendMessage(val, 'me');
+            msgInput.value = '';
+        }
+    });
+
+    function appendMessage(content, sender, isHtml = false) {
         const div = document.createElement('div');
-        div.className = 'msg me';
-        div.innerHTML = `<div class="bubble">${val}</div>`;
-        box.appendChild(div);
-        input.value = '';
-        box.scrollTop = box.scrollHeight;
+        div.className = `msg ${sender}`;
+        div.innerHTML = `<div class="bubble">${isHtml ? content : escapeHtml(content)}</div>`;
+        chatBox.appendChild(div);
+        chatBox.scrollTop = chatBox.scrollHeight;
     }
+
+    function escapeHtml(str) {
+        return str.replace(/[&<>'"]/g, 
+            tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+        );
+    }
+
+    // 3. 【发文件】真实调起手机系统文件选择器
+    document.getElementById('btn-file').addEventListener('click', () => {
+        plusPanel.classList.remove('active');
+        realFileInput.click();
+    });
+
+    realFileInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        appendMessage(`[文件传输] 📄 ${file.name} (${(file.size/1024).toFixed(1)} KB)`, 'me');
+        // 后续可在此处通过 WebRTC DataChannel 发送二进制流
+        realFileInput.value = '';
+    });
+
+    // 4. 【发照片】真实调起手机相册 / 拍照
+    document.getElementById('btn-photo').addEventListener('click', () => {
+        plusPanel.classList.remove('active');
+        realPhotoInput.click();
+    });
+
+    realPhotoInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(evt) {
+            appendMessage(`<img src="${evt.target.result}" alt="图片">`, 'me', true);
+            // 后续可在此处通过 WebRTC 发送图片 Base64 或 ArrayBuffer
+        };
+        reader.readAsDataURL(file);
+        realPhotoInput.value = '';
+    });
+
+    // 5. 【打视频】真实调用前置摄像头 / 麦克风 (WebRTC 媒体流骨架)
+    document.getElementById('btn-video').addEventListener('click', async () => {
+        plusPanel.classList.remove('active');
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+            appendMessage(`[视频通话] 📹 摄像头已成功激活并获取媒体流`, 'me');
+            // 后续可将 stream 绑定到 <video> 标签并送入 WebRTC RTCPeerConnection
+        } catch (err) {
+            alert(`无法调用摄像头/麦克风: ${err.message}`);
+        }
+    });
+
+    // 6. 【打电话】真实调用麦克风音频流
+    document.getElementById('btn-voice').addEventListener('click', async () => {
+        plusPanel.classList.remove('active');
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            appendMessage(`[语音通话] 📞 麦克风已成功激活`, 'me');
+            // 后续可送入 WebRTC 音频轨道
+        } catch (err) {
+            alert(`无法调用麦克风: ${err.message}`);
+        }
+    });
 </script>
 </body>
 </html>
-EOF
