@@ -1,111 +1,126 @@
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body {
-    margin: 0; padding: 0; background-color: #ededed;
+    margin: 0; padding: 0; background-color: #191919;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    color: #111; width: 100vw; height: 100dvh;
+    color: #fff; width: 100vw; height: 100dvh;
     display: flex; flex-direction: column; overflow: hidden; position: fixed; top: 0; left: 0;
 }
 .wx-header {
-    background-color: #ededed; height: 48px; min-height: 48px;
-    border-bottom: 1px solid #d8d8d8; display: flex;
-    justify-content: center; align-items: center; padding: 0 16px; flex-shrink: 0;
+    background-color: #191919; height: 48px; min-height: 48px;
+    border-bottom: 1px solid #2c2c2c; display: flex;
+    justify-content: space-between; align-items: center; padding: 0 16px; flex-shrink: 0;
 }
-.wx-header .title { font-size: 1rem; font-weight: 600; margin: 0; letter-spacing: 0.5px; }
+.header-left-title { font-size: 1rem; font-weight: 600; color: #fff; letter-spacing: 0.5px; }
+.header-right-credit { font-size: 0.75rem; color: #888; letter-spacing: 0.5px; }
 
 #chat-box {
     flex: 1; overflow-y: auto; padding: 16px;
-    background-color: #ededed; display: flex; flex-direction: column; gap: 16px;
+    background-color: #191919; display: flex; flex-direction: column; gap: 16px;
 }
 .msg { display: flex; flex-direction: column; max-width: 75%; }
 .msg.me { align-self: flex-end; align-items: flex-end; }
 .msg.peer { align-self: flex-start; align-items: flex-start; }
-.bubble { padding: 10px 14px; border-radius: 6px; font-size: 0.95rem; word-break: break-all; background-color: #95ec69; line-height: 1.4; }
-.msg.peer .bubble { background-color: #ffffff; }
+.bubble { padding: 10px 14px; border-radius: 6px; font-size: 0.95rem; word-break: break-all; background-color: #2e8b57; color: #fff; line-height: 1.4; }
+.msg.peer .bubble { background-color: #262626; }
 
 .wx-footer {
-    background-color: #f7f7f7; border-top: 1px solid #d8d8d8;
+    background-color: #202020; border-top: 1px solid #2c2c2c;
     flex-shrink: 0; padding: 8px 12px; display: flex; align-items: center; gap: 10px; min-height: 56px;
 }
-.icon-btn { background: none; border: none; font-size: 1.5rem; padding: 0; cursor: pointer; color: #555; display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; }
+.icon-btn { background: none; border: none; font-size: 1.5rem; padding: 0; cursor: pointer; color: #aaa; display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; }
 .text-input {
-    flex: 1; height: 38px; background: #ffffff; 
-    border: 1px solid #d0d0d0;
+    flex: 1; height: 38px; background: #2b2b2b; 
+    border: 1px solid #3c3c3c; color: #fff;
     border-radius: 4px; padding: 0 12px; font-size: 1rem; outline: none;
-    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.06);
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.3);
     transition: all 0.2s ease;
 }
 .text-input:focus {
-    border-color: #07c160;
-    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.06), 0 0 3px rgba(7, 193, 96, 0.2);
+    border-color: #2e8b57;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.3), 0 0 3px rgba(46, 139, 87, 0.3);
 }
 
 #plus-panel {
-    display: none; background-color: #f7f7f7; border-top: 1px solid #d8d8d8;
+    display: none; background-color: #202020; border-top: 1px solid #2c2c2c;
     padding: 20px 16px; grid-template-columns: repeat(4, 1fr); gap: 16px; flex-shrink: 0;
 }
 #plus-panel.active { display: grid; }
 .grid-item { display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer; }
 .grid-icon {
-    width: 52px; height: 52px; background: #ffffff; border-radius: 12px;
+    width: 52px; height: 52px; background: #2b2b2b; border-radius: 12px;
     display: flex; align-items: center; justify-content: center; font-size: 1.4rem;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
 }
-.grid-label { font-size: 0.75rem; color: #555; }
+.grid-label { font-size: 0.75rem; color: #aaa; }
 
-/* 底部制作署名样式 */
-.footer-credit {
-    background-color: #f7f7f7;
-    text-align: center;
-    font-size: 0.75rem;
-    color: #999;
-    padding: 4px 0 6px 0;
-    flex-shrink: 0;
-    letter-spacing: 1px;
-}
-
-/* 完美可自由拖动的悬浮视频窗样式（绝对定位 + 独立拖拽层） */
+/* 悬浮视频窗（微信微型风格，按钮极简精炼） */
 .draggable-video-box {
     position: relative; 
     background: #000; 
-    border-radius: 6px; 
+    border-radius: 8px; 
     overflow: hidden;
     touch-action: none; 
     user-select: none;
-    width: 240px;
-    box-shadow: 0 6px 16px rgba(0,0,0,0.35);
+    width: 200px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.6);
     cursor: grab;
     will-change: transform;
+    transition: width 0.25s ease, height 0.25s ease;
+}
+.draggable-video-box.fullscreen {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    z-index: 99999;
+    border-radius: 0;
+    transform: none !important;
 }
 .draggable-video-box:active {
     cursor: grabbing;
 }
 .draggable-video-box video {
     width: 100%;
-    height: 320px;
+    height: 280px;
     object-fit: cover;
     display: block;
 }
+.draggable-video-box.fullscreen video {
+    height: 100vh;
+}
 .video-controls {
     position: absolute; 
-    bottom: 12px; 
-    left: 0; 
-    right: 0;
+    bottom: 8px; 
+    left: 8px; 
+    right: 8px;
     display: flex; 
-    justify-content: center; 
-    gap: 12px; 
+    justify-content: space-around; 
+    align-items: center;
+    gap: 6px; 
     z-index: 99;
+    background: rgba(0, 0, 0, 0.4);
+    padding: 4px 8px;
+    border-radius: 16px;
+    backdrop-filter: blur(6px);
 }
 .video-ctrl-btn {
-    background: rgba(0, 0, 0, 0.75); 
-    border: 1px solid rgba(255, 255, 255, 0.4);
+    background: rgba(255, 255, 255, 0.2); 
+    border: none;
     color: #fff; 
-    padding: 6px 14px; 
-    border-radius: 20px; 
-    font-size: 0.8rem; 
+    width: 28px;
+    height: 28px;
+    border-radius: 50%; 
+    font-size: 0.75rem; 
     cursor: pointer;
-    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+}
+.video-ctrl-btn:hover {
+    background: rgba(255, 255, 255, 0.4);
 }
 .video-ctrl-btn.hangup { 
-    background: rgba(231, 76, 60, 0.9); 
-    border: none; 
+    background: rgba(220, 50, 50, 0.85); 
 }
