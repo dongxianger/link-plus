@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>文件传输助手</title>
+    <!-- 引入独立样式文件 -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- 顶部栏 -->
+<header class="wx-header">
+    <button class="header-back-btn" id="back-btn">‹</button>
+    <h1 class="title">文件传输助手</h1>
+    <button class="header-more-btn" id="more-btn">•••</button>
+</header>
+
+<!-- 聊天消息主面板 -->
+<main id="chat-box">
+    <div class="msg peer">
+        <div class="bubble">欢迎使用标准模块化 P2P 传输助手！当前采用多文件架构。</div>
+    </div>
+</main>
+
+<!-- 底部输入栏 -->
+<footer class="wx-footer">
+    <button class="icon-btn" id="voice-btn" title="语音">🎤</button>
+    <input type="text" id="msg-input" class="text-input" placeholder="" autocomplete="off">
+    <button class="icon-btn" id="emoji-btn" title="表情">😊</button>
+    <button class="icon-btn" id="plus-btn" title="更多功能">➕</button>
+</footer>
+
+<!-- 加号弹出的宫格面板 -->
+<nav id="plus-panel">
+    <div class="grid-item" data-action="相册"><div class="grid-icon">🖼️</div><span class="grid-label">相册</span></div>
+    <div class="grid-item" data-action="拍摄"><div class="grid-icon">📷</div><span class="grid-label">拍摄</span></div>
+    <div class="grid-item" data-action="视频通话"><div class="grid-icon">📹</div><span class="grid-label">视频通话</span></div>
+    <div class="grid-item" data-action="语音输入"><div class="grid-icon">🗣️</div><span class="grid-label">语音输入</span></div>
+    <div class="grid-item" data-action="收藏"><div class="grid-icon">📦</div><span class="grid-label">收藏</span></div>
+    <div class="grid-item" data-action="个人名片"><div class="grid-icon">👤</div><span class="grid-label">个人名片</span></div>
+    <div class="grid-item" data-action="文件"><div class="grid-icon">📁</div><span class="grid-label">文件</span></div>
+    <div class="grid-item" data-action="音乐"><div class="grid-icon">🎵</div><span class="grid-label">音乐</span></div>
+</nav>
+
+<!-- 引入独立逻辑脚本 -->
+<script src="app.js"></script>
+</body>
+</html>
