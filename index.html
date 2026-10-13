@@ -9,7 +9,8 @@
 <body>
 
 <header class="wx-header">
-    <h1 class="title">Link +</h1>
+    <span class="header-left-title">Link +</span>
+    <span class="header-right-credit">三藏制作</span>
 </header>
 
 <main id="chat-box">
@@ -19,7 +20,7 @@
 </main>
 
 <footer class="wx-footer">
-    <input type="text" id="msg-input" class="text-input" placeholder="给 Link + 发消息或发送大文件..." autocomplete="off">
+    <input type="text" id="msg-input" class="text-input" placeholder="给 Link + 发消息或发送文件..." autocomplete="off">
     <button class="icon-btn" id="plus-btn">➕</button>
 </footer>
 
@@ -30,9 +31,6 @@
     <div class="grid-item" id="btn-transfer"><div class="grid-icon">📤</div><span class="grid-label">文件传输</span></div>
     <div class="grid-item" id="btn-photo"><div class="grid-icon">🖼️</div><span class="grid-label">发照片</span></div>
 </nav>
-
-<!-- 页面底部版权/制作信息 -->
-<div class="footer-credit">三藏制作</div>
 
 <!-- 隐藏的原生输入载体 -->
 <input type="file" id="real-file-input" style="display: none;">
