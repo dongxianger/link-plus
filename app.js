@@ -12,11 +12,25 @@ document.addEventListener('DOMContentLoaded', () => {
         plusBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             plusPanel.classList.toggle('active');
-            chatBox.scrollTop = chatBox.scrollHeight;
+            scrollToBottom();
         });
     }
 
-    // 2. 文本输入回车发送
+    if (msgInput) {
+        msgInput.addEventListener('focus', () => {
+            plusPanel.classList.remove('active');
+        });
+    }
+
+    document.addEventListener('click', (e) => {
+        if (plusPanel && plusPanel.classList.contains('active')) {
+            if (!plusPanel.contains(e.target) && e.target !== plusBtn) {
+                plusPanel.classList.remove('active');
+            }
+        }
+    });
+
+    // 2. 文本消息发送
     if (msgInput) {
         msgInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
@@ -33,7 +47,13 @@ document.addEventListener('DOMContentLoaded', () => {
         div.className = `msg ${sender}`;
         div.innerHTML = `<div class="bubble">${isHtml ? content : escapeHtml(content)}</div>`;
         chatBox.appendChild(div);
-        chatBox.scrollTop = chatBox.scrollHeight;
+        scrollToBottom();
+    }
+
+    function scrollToBottom() {
+        requestAnimationFrame(() => {
+            chatBox.scrollTop = chatBox.scrollHeight;
+        });
     }
 
     function escapeHtml(str) {
@@ -74,7 +94,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const files = e.target.files;
             if (!files.length) return;
             for (let file of files) {
-                appendMessage(`[文件传输] 📤 ${file.name} (${(file.size / (1024 * 1024)).toFixed(2)} MB) 准备就绪`, 'me');
+                appendMessage(`[文件传输通道] 📤 ${file.name} (${(file.size / (1024 * 1024)).toFixed(2)} MB) 准备就绪`, 'me');
             }
             realTransferInput.value = '';
         });
@@ -108,24 +128,31 @@ document.addEventListener('DOMContentLoaded', () => {
         btnVideo.addEventListener('click', async () => {
             plusPanel.classList.remove('active');
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: "user" }, 
+                    audio: true 
+                });
                 const videoElement = document.createElement('video');
                 videoElement.srcObject = stream;
                 videoElement.autoplay = true;
                 videoElement.playsInline = true;
+                videoElement.muted = true;
                 videoElement.style.width = '100%';
-                videoElement.style.maxHeight = '200px';
+                videoElement.style.maxHeight = '220px';
                 videoElement.style.borderRadius = '4px';
                 videoElement.style.objectFit = 'cover';
+                videoElement.style.backgroundColor = '#000000';
 
                 const div = document.createElement('div');
                 div.className = 'msg me';
                 const bubble = document.createElement('div');
                 bubble.className = 'bubble';
+                bubble.style.backgroundColor = '#000000';
+                bubble.style.padding = '4px';
                 bubble.appendChild(videoElement);
                 div.appendChild(bubble);
                 chatBox.appendChild(div);
-                chatBox.scrollTop = chatBox.scrollHeight;
+                scrollToBottom();
             } catch (err) {
                 alert(`无法调用摄像头: ${err.message}`);
             }
@@ -138,8 +165,10 @@ document.addEventListener('DOMContentLoaded', () => {
         btnVoice.addEventListener('click', async () => {
             plusPanel.classList.remove('active');
             try {
-                await navigator.mediaDevices.getUserMedia({ audio: true });
-                appendMessage(`[语音通话] 📞 麦克风已成功激活并接入`, 'me');
+                await navigator.mediaDevices.getUserMedia({ 
+                    audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } 
+                });
+                appendMessage(`[语音通话] 📞 麦克风已成功激活（降噪与回音消除已开启）`, 'me');
             } catch (err) {
                 alert(`无法调用麦克风: ${err.message}`);
             }
