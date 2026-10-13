@@ -44,3 +44,18 @@ html, body {
     box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
 .grid-label { font-size: 0.75rem; color: #555; }
+
+/* 视频悬浮窗与控制条样式（可拖动、带切换前后摄和挂断） */
+.draggable-video-box {
+    position: relative; background: #000; border-radius: 6px; overflow: hidden;
+    touch-action: none; user-select: none;
+}
+.video-controls {
+    position: absolute; bottom: 8px; left: 0; right: 0;
+    display: flex; justify-content: center; gap: 12px; z-index: 10;
+}
+.video-ctrl-btn {
+    background: rgba(0, 0, 0, 0.6); border: 1px solid rgba(255, 255, 255, 0.3);
+    color: #fff; padding: 6px 12px; border-radius: 20px; font-size: 0.75rem; cursor: pointer;
+}
+.video-ctrl-btn.hangup { background: rgba(231, 76, 60, 0.8); border: none; }
