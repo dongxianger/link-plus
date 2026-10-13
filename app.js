@@ -4,6 +4,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const plusBtn = document.getElementById('plus-btn');
     const plusPanel = document.getElementById('plus-panel');
     const realFileInput = document.getElementById('real-file-input');
+    const realTransferInput = document.getElementById('real-transfer-input');
     const realPhotoInput = document.getElementById('real-photo-input');
 
     // 1. 加号面板开关
@@ -54,12 +55,32 @@ document.addEventListener('DOMContentLoaded', () => {
         realFileInput.addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (!file) return;
-            appendMessage(`[文件传输] 📄 ${file.name} (${(file.size/1024).toFixed(1)} KB)`, 'me');
+            appendMessage(`[文件] 📄 ${file.name} (${(file.size/1024).toFixed(1)} KB)`, 'me');
             realFileInput.value = '';
         });
     }
 
-    // 4. 发照片
+    // 4. 文件传输（批量多选）
+    const btnTransfer = document.getElementById('btn-transfer');
+    if (btnTransfer) {
+        btnTransfer.addEventListener('click', () => {
+            plusPanel.classList.remove('active');
+            realTransferInput.click();
+        });
+    }
+
+    if (realTransferInput) {
+        realTransferInput.addEventListener('change', (e) => {
+            const files = e.target.files;
+            if (!files.length) return;
+            for (let file of files) {
+                appendMessage(`[文件传输] 📤 ${file.name} (${(file.size / (1024 * 1024)).toFixed(2)} MB) 准备就绪`, 'me');
+            }
+            realTransferInput.value = '';
+        });
+    }
+
+    // 5. 发照片
     const btnPhoto = document.getElementById('btn-photo');
     if (btnPhoto) {
         btnPhoto.addEventListener('click', () => {
@@ -81,7 +102,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 5. 打视频（实时渲染摄像头画面）
+    // 6. 打视频
     const btnVideo = document.getElementById('btn-video');
     if (btnVideo) {
         btnVideo.addEventListener('click', async () => {
@@ -111,7 +132,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 6. 打电话
+    // 7. 打电话
     const btnVoice = document.getElementById('btn-voice');
     if (btnVoice) {
         btnVoice.addEventListener('click', async () => {
