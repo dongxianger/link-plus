@@ -7,7 +7,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const realTransferInput = document.getElementById('real-transfer-input');
     const realPhotoInput = document.getElementById('real-photo-input');
 
-    // 全球免费公网 STUN 服务器配置（用于新疆到广东、甚至海外的 NAT 跨网打洞）
+    // 全球免费公网 STUN 服务器配置（用于跨网 P2P 打洞）
     const rtcConfig = {
         iceServers: [
             { urls: 'stun:stun.l.google.com:19302' },
@@ -93,7 +93,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 4. 文件传输（批量大文件/电影传输预备）
+    // 4. 文件传输（批量大文件/电影）
     const btnTransfer = document.getElementById('btn-transfer');
     if (btnTransfer) {
         btnTransfer.addEventListener('click', () => {
@@ -135,7 +135,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 6. 打视频（支持跨网 STUN 打洞准备、前后摄切换、挂断、自由拖动悬浮）
+    // 6. 打视频（带前后摄切换、挂断、自由拖动悬浮窗、全球 STUN 打洞）
     const btnVideo = document.getElementById('btn-video');
     if (btnVideo) {
         btnVideo.addEventListener('click', async () => {
@@ -146,7 +146,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function startVideoCall(facingMode) {
         try {
-            // 如果已有流先关掉
             if (localStream) {
                 localStream.getTracks().forEach(track => track.stop());
             }
@@ -156,7 +155,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 audio: { echoCancellation: true, noiseSuppression: true } 
             });
 
-            // 初始化 WebRTC 连线对象（内置全局 STUN 打洞）
             if (!peerConnection) {
                 peerConnection = new RTCPeerConnection(rtcConfig);
                 localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
@@ -170,18 +168,14 @@ document.addEventListener('DOMContentLoaded', () => {
             videoElement.autoplay = true;
             videoElement.playsInline = true;
             videoElement.muted = true;
-            videoElement.style.width = '100%';
-            videoElement.style.maxHeight = '240px';
-            videoElement.style.objectFit = 'cover';
-            videoElement.style.display = 'block';
 
-            // 控制条（切换镜头、挂断）
+            // 悬浮控制条
             const controlsDiv = document.createElement('div');
             controlsDiv.className = 'video-controls';
 
             const switchBtn = document.createElement('button');
             switchBtn.className = 'video-ctrl-btn';
-            switchBtn.innerText = '🔄 翻转镜头';
+            switchBtn.innerText = '🔄 翻转';
             switchBtn.onclick = async (e) => {
                 e.stopPropagation();
                 currentFacingMode = currentFacingMode === 'user' ? 'environment' : 'user';
@@ -212,9 +206,9 @@ document.addEventListener('DOMContentLoaded', () => {
             videoContainer.appendChild(videoElement);
             videoContainer.appendChild(controlsDiv);
 
-            // 实现窗口拖动功能 (支持手机触控 & 电脑鼠标)
+            // 窗口自由拖动逻辑
             let isDragging = false;
-            let startX, startY, initialLeft = 0, initialTop = 0;
+            let startX, startY;
 
             videoContainer.addEventListener('pointerdown', (e) => {
                 isDragging = true;
@@ -251,13 +245,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // 7. 打电话（集成语音 STUN 穿透与控制）
+    // 7. 打电话
     const btnVoice = document.getElementById('btn-voice');
     if (btnVoice) {
         btnVoice.addEventListener('click', async () => {
             plusPanel.classList.remove('active');
             try {
-                const audioStream = await navigator.mediaDevices.getUserMedia({ 
+                await navigator.mediaDevices.getUserMedia({ 
                     audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } 
                 });
                 appendMessage(`[语音通话] 📞 全球 P2P 语音通道已激活（STUN 穿透准备就绪）`, 'me');
