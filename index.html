@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>三藏制作 - 终极 P2P 赛博通讯</title>
+    <title>三藏制作 - 终极 P2P 赛博微信（自由体验版）</title>
     <style>
         :root {
             --primary: #007aff;
@@ -17,6 +17,7 @@
             --peer-msg: #334155;
             --success: #22c55e;
             --warning: #eab308;
+            --danger: #ef4444;
         }
 
         body {
@@ -73,13 +74,15 @@
         .status-indicator { display: flex; align-items: center; gap: 6px; }
         .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--warning); }
         .dot.connected { background: var(--success); }
-        .dot.disconnected { background: #ef4444; }
+        .dot.disconnected { background: var(--danger); }
 
-        .btn-group { display: flex; gap: 8px; }
+        .btn-group { display: flex; gap: 8px; margin-bottom: 6px; }
+        .btn-group:last-child { margin-bottom: 0; }
+        
         button {
             flex: 1;
             padding: 8px 12px;
-            font-size: 0.9rem;
+            font-size: 0.85rem;
             background: var(--primary);
             color: white;
             border: none;
@@ -90,6 +93,8 @@
         }
         button:hover { background: var(--primary-hover); }
         button.secondary { background: #475569; }
+        button.danger { background: var(--danger); }
+        button.success { background: var(--success); }
 
         /* 聊天主界面 */
         .chat-container {
@@ -139,6 +144,11 @@
         .msg-wrapper.me .msg-bubble { background: var(--my-msg); color: white; border-bottom-right-radius: 2px; }
         .msg-wrapper.peer .msg-bubble { background: var(--peer-msg); color: var(--text-main); border-bottom-left-radius: 2px; }
 
+        .msg-bubble img { max-width: 100%; border-radius: 8px; display: block; margin-top: 4px; cursor: pointer; }
+        .file-card { display: flex; align-items: center; gap: 10px; background: rgba(0,0,0,0.2); padding: 8px 12px; border-radius: 8px; margin-top: 4px; }
+        .file-info { font-size: 0.85rem; }
+        .file-info a { color: #fff; text-decoration: underline; font-size: 0.75rem; }
+
         .msg-meta {
             font-size: 0.65rem;
             color: var(--text-muted);
@@ -157,25 +167,39 @@
             border: 1px solid var(--border);
             display: flex;
             gap: 8px;
+            align-items: center;
         }
-        input {
+        input[type="text"] {
             flex: 1;
             padding: 10px;
             background: #0f172a;
             border: 1px solid var(--border);
             border-radius: 8px;
             color: white;
-            font-size: 0.95px;
+            font-size: 0.95rem;
             outline: none;
         }
-        input:focus { border-color: var(--primary); }
+        input[type="text"]:focus { border-color: var(--primary); }
+        .icon-btn {
+            background: #475569;
+            flex: 0 0 38px;
+            height: 38px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            cursor: pointer;
+            padding: 0;
+        }
+        .icon-btn:hover { background: var(--primary); }
 
-        /* 弹窗 */
+        /* 弹窗样式 */
         .modal {
             display: none;
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.7);
+            background: rgba(0,0,0,0.8);
             justify-content: center;
             align-items: center;
             z-index: 100;
@@ -194,6 +218,23 @@
             border-radius: 6px; resize: none; font-size: 0.75rem;
         }
 
+        /* 视频通话浮窗 */
+        #call-modal .modal-content {
+            max-width: 480px;
+            text-align: center;
+        }
+        .video-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin: 15px 0;
+            background: #000;
+            border-radius: 8px;
+            overflow: hidden;
+            min-height: 180px;
+        }
+        .video-grid video { width: 100%; height: 100%; object-fit: cover; background: #111; }
+
         .footer { text-align: center; font-size: 0.7rem; color: var(--text-muted); margin-bottom: 5px; }
     </style>
 </head>
@@ -204,7 +245,7 @@
         <div class="title-area">
             <h2>🚀 三藏制作</h2>
         </div>
-        <span class="badge">P2P 终极加密版</span>
+        <span class="badge">自由体验版</span>
     </div>
 
     <!-- 控制卡片 -->
@@ -212,13 +253,17 @@
         <div class="status-row">
             <div class="status-indicator">
                 <span id="dot" class="dot"></span>
-                <span id="status-text">通道未连接</span>
+                <span id="status-text">通道未连接 (离线测试可用)</span>
             </div>
             <button onclick="clearHistory()" style="flex:0 0 auto; padding:4px 8px; font-size:0.75rem; background:#475569;">清空记录</button>
         </div>
         <div class="btn-group">
             <button onclick="startHost()">1. 创建连接 (A端)</button>
             <button class="secondary" onclick="startJoin()">2. 加入连接 (B端)</button>
+        </div>
+        <div class="btn-group" style="margin-top: 8px;">
+            <button class="success" onclick="startCall('audio')">📞 语音通话</button>
+            <button class="success" onclick="startCall('video')">📹 视频通话</button>
         </div>
     </div>
 
@@ -227,12 +272,14 @@
         <div id="typing-status"></div>
         <div id="chat-box"></div>
         <div class="input-area">
-            <input type="text" id="msg-input" placeholder="输入消息..." oninput="notifyTyping()" onkeydown="if(event.key==='Enter') sendMsg()">
-            <button onclick="sendMsg()" style="flex: 0 0 65px;">发送</button>
+            <input type="file" id="file-picker" style="display:none" onchange="handleFileSelected(this)">
+            <button class="icon-btn" title="发图片/文件" onclick="document.getElementById('file-picker').click()">📁</button>
+            <input type="text" id="msg-input" placeholder="输入消息 (不连网也可直接本地发送测试)..." oninput="notifyTyping()" onkeydown="if(event.key==='Enter') sendMsg()">
+            <button onclick="sendMsg()" style="flex: 0 0 55px; height: 38px;">发送</button>
         </div>
     </div>
 
-    <div class="footer">纯端到端 P2P 直连 · 搭载智能多路兜底 · 三藏制作出品</div>
+    <div class="footer">纯端到端 P2P 直连 · 自由离线测试版 · 三藏制作出品</div>
 </div>
 
 <!-- 暗号模态框 -->
@@ -248,9 +295,21 @@
     </div>
 </div>
 
+<!-- 音视频通话面板 -->
+<div id="call-modal" class="modal">
+    <div class="modal-content">
+        <h3 id="call-title" style="margin-top:0; color:var(--primary);">实时通话测试</h3>
+        <div class="video-grid">
+            <video id="local-video" autoplay muted playsinline></video>
+            <video id="remote-video" autoplay playsinline></video>
+        </div>
+        <div id="call-status" style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 10px;">本地摄像头预览测试中...</div>
+        <button class="danger" onclick="endCall()">关闭预览/挂断</button>
+    </div>
+</div>
+
 <script>
-    // 国内多路智能秒连 STUN 配置
-    const rtcConfig = {
+    const standardRtcConfig = {
         iceServers: [
             { urls: 'stun:stun.qq.com:3478' },
             { urls: 'stun:stun.miwifi.com:3478' },
@@ -259,8 +318,11 @@
     };
 
     let pc, dataChannel;
+    let localStream, remoteStream;
     let typingTimer = null;
-    const STORAGE_KEY = 'sanzang_ultimate_chat';
+    const STORAGE_KEY = 'sanzang_cyber_chat_free';
+
+    let incomingFile = { name: '', size: 0, type: '', buffer: [], receivedSize: 0 };
 
     const chatBox = document.getElementById('chat-box');
     const statusText = document.getElementById('status-text');
@@ -274,21 +336,29 @@
 
     window.onload = function() {
         loadHistory();
-        // 页面加载时自动标记之前的未读消息为已读（或保持本地状态）
     };
 
     function initPC() {
-        pc = new RTCPeerConnection(rtcConfig);
+        if (pc) pc.close();
+        pc = new RTCPeerConnection(standardRtcConfig);
 
         pc.ondatachannel = (event) => {
             dataChannel = event.channel;
             setupDataChannel();
         };
 
+        remoteStream = new MediaStream();
+        document.getElementById('remote-video').srcObject = remoteStream;
+        pc.ontrack = (event) => {
+            event.streams[0].getTracks().forEach(track => {
+                remoteStream.addTrack(track);
+            });
+            document.getElementById('call-status').innerText = '通话中';
+        };
+
         pc.onconnectionstatechange = () => {
             if (pc.connectionState === 'connected') {
                 updateStatus('connected', 'P2P 加密直连已建立');
-                // 连接成功后，自动发送一个“已读”信号告诉对方之前的消息收到了
                 sendSignal({ type: 'READ_ALL' });
             } else if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed') {
                 updateStatus('disconnected', '连接已断开');
@@ -297,54 +367,79 @@
     }
 
     function setupDataChannel() {
-        dataChannel.onopen = () => {
-            updateStatus('connected', '数据通道已就绪');
-        };
+        dataChannel.onopen = () => updateStatus('connected', '数据通道已就绪');
         dataChannel.onclose = () => updateStatus('disconnected', '通道已关闭');
-        
+        dataChannel.binaryType = 'arraybuffer';
+
         dataChannel.onmessage = (event) => {
-            try {
-                const packet = JSON.parse(event.data);
-                
-                // 处理“正在输入”状态
-                if (packet.type === 'TYPING') {
-                    typingStatus.innerText = '对方正在输入...';
-                    clearTimeout(typingTimer);
-                    typingTimer = setTimeout(() => { typingStatus.innerText = ''; }, 2000);
-                    return;
+            if (typeof event.data === 'string') {
+                try {
+                    const packet = JSON.parse(event.data);
+                    if (packet.type === 'TYPING') {
+                        typingStatus.innerText = '对方正在输入...';
+                        clearTimeout(typingTimer);
+                        typingTimer = setTimeout(() => { typingStatus.innerText = ''; }, 2000);
+                        return;
+                    }
+                    if (packet.type === 'READ_ALL') {
+                        markAllAsReadLocally();
+                        return;
+                    }
+                    if (packet.type === 'MSG') {
+                        appendMsg('peer', packet.text, packet.time, '已送达', packet.id);
+                        sendSignal({ type: 'READ_ALL' });
+                        return;
+                    }
+                    if (packet.type === 'FILE_META') {
+                        incomingFile.name = packet.name;
+                        incomingFile.size = packet.size;
+                        incomingFile.fileType = packet.fileType;
+                        incomingFile.buffer = [];
+                        incomingFile.receivedSize = 0;
+                        return;
+                    }
+                    if (packet.type === 'CALL_REQUEST') {
+                        showCallModal(packet.callType, true);
+                        return;
+                    }
+                    if (packet.type === 'CALL_END') {
+                        closeCallModal();
+                        return;
+                    }
+                } catch (e) {
+                    console.error("解析数据失败", e);
                 }
+            } else {
+                incomingFile.buffer.push(event.data);
+                incomingFile.receivedSize += event.data.byteLength;
 
-                // 处理“已读回执”信号
-                if (packet.type === 'READ_ALL') {
-                    markAllAsReadLocally();
-                    return;
-                }
+                if (incomingFile.receivedSize >= incomingFile.size) {
+                    const blob = new Blob(incomingFile.buffer, { type: incomingFile.fileType });
+                    const fileUrl = URL.createObjectURL(blob);
+                    const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
-                // 处理普通文本消息
-                if (packet.type === 'MSG') {
-                    appendMsg('peer', packet.text, packet.time, '已送达', packet.id);
-                    // 收到消息后，立刻回传一个“已读”信号给对方
+                    if (incomingFile.fileType.startsWith('image/')) {
+                        appendMsg('peer', `<img src="${fileUrl}" onclick="window.open('${fileUrl}')">`, time, '已送达', 'img_' + Date.now());
+                    } else {
+                        const fileHtml = `<div class="file-card">📄 <div class="file-info"><b>${incomingFile.name}</b><br><a href="${fileUrl}" download="${incomingFile.name}">点击下载文件</a></div></div>`;
+                        appendMsg('peer', fileHtml, time, '已送达', 'file_' + Date.now());
+                    }
                     sendSignal({ type: 'READ_ALL' });
                 }
-            } catch (e) {
-                console.error("解析数据失败", e);
             }
         };
     }
 
-    // 发送封装信令
     function sendSignal(obj) {
         if (dataChannel && dataChannel.readyState === 'open') {
             dataChannel.send(JSON.stringify(obj));
         }
     }
 
-    // 正在输入通知
     function notifyTyping() {
         sendSignal({ type: 'TYPING' });
     }
 
-    // A端创建
     async function startHost() {
         initPC();
         dataChannel = pc.createDataChannel("chat");
@@ -362,7 +457,6 @@
         });
     }
 
-    // B端加入
     async function startJoin() {
         initPC();
         showModal("输入A端暗号", "请将A端发给你的暗号粘贴到下方：", "", async (offerStr) => {
@@ -379,11 +473,11 @@
     }
 
     function waitForIceComplete(cb) {
-        if (pc.iceGatheringState === 'complete') cb();
+        if (!pc || pc.iceGatheringState === 'complete') cb();
         else {
             function check() {
-                if (pc.iceGatheringState === 'complete') {
-                    pc.removeEventListener('icegatheringstatechange', check);
+                if (!pc || pc.iceGatheringState === 'complete') {
+                    if (pc) pc.removeEventListener('icegatheringstatechange', check);
                     cb();
                 }
             }
@@ -396,55 +490,140 @@
         dot.className = 'dot ' + state;
     }
 
-    // 模态框逻辑
-    function showModal(title, tip, content, cb) {
-        modalTitle.innerText = title;
-        modalTip.innerText = tip;
-        modalText.value = content;
-        if (content) modalText.select();
-        modal.style.display = 'flex';
-        modalCallback = cb;
-    }
-    function closeModal() { modal.style.display = 'none'; }
-    function handleModalSubmit() {
-        const val = modalText.value;
-        closeModal();
-        if (modalCallback) modalCallback(val);
-    }
-
-    // 核心消息与存储引擎（支持已读未读状态持久化）
+    // 自由发送消息（不限制必须连上，未连接也能本地测试发送、存库）
     function sendMsg() {
         const input = document.getElementById('msg-input');
         const text = input.value.trim();
         if (!text) return;
-        if (!dataChannel || dataChannel.readyState !== 'open') {
-            alert("请先建立 P2P 直连通道！");
-            return;
+
+        // 如果连通了就走通道发过去，没连通也允许本地模拟发送
+        if (dataChannel && dataChannel.readyState === 'open') {
+            const msgId = 'msg_' + Date.now() + Math.random().toString(36).substr(2, 5);
+            const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            sendSignal({ type: 'MSG', text, time, id: msgId });
+            appendMsg('me', text, time, '送达·未读', msgId);
+            saveMessageStorage('me', text, time, '送达·未读', msgId);
+        } else {
+            // 离线/未连接时的本地模拟测试
+            const msgId = 'msg_' + Date.now() + Math.random().toString(36).substr(2, 5);
+            const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            appendMsg('me', text + " (未连接本地预览)", time, '本地草稿', msgId);
+            saveMessageStorage('me', text + " (未连接本地预览)", time, '本地草稿', msgId);
         }
-
-        const msgId = 'msg_' + Date.now() + Math.random().toString(36.2);
-        const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-
-        // 发送数据包
-        sendSignal({ type: 'MSG', text, time, id: msgId });
-
-        // 界面渲染（我发出的初始状态是“未读”）
-        appendMsg('me', text, time, '送达·未读', msgId, false);
-        
-        // 保存至本地存储
-        saveMessageStorage('me', text, time, '送达·未读', msgId);
 
         input.value = '';
     }
 
-    function appendMsg(sender, text, time, status, id, save = true) {
+    // 自由文件/图片选择（不限制连上，未连接也可本地预览）
+    function handleFileSelected(input) {
+        const file = input.files[0];
+        if (!file) return;
+
+        const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        const fileUrl = URL.createObjectURL(file);
+
+        if (dataChannel && dataChannel.readyState === 'open') {
+            sendSignal({ type: 'FILE_META', name: file.name, size: file.size, fileType: file.type });
+            if (file.type.startsWith('image/')) {
+                appendMsg('me', `<img src="${fileUrl}" onclick="window.open('${fileUrl}')">`, time, '送达·未读', 'img_' + Date.now());
+            } else {
+                const fileHtml = `<div class="file-card">📄 <div class="file-info"><b>${file.name}</b><br><a href="${fileUrl}" download="${file.name}">点击下载文件</a></div></div>`;
+                appendMsg('me', fileHtml, time, '送达·未读', 'file_' + Date.now());
+            }
+
+            // 分块发送
+            const CHUNK_SIZE = 16384;
+            const reader = new FileReader();
+            let offset = 0;
+            reader.onload = function(e) {
+                dataChannel.send(e.target.result);
+                offset += e.target.result.byteLength;
+                if (offset < file.size) readNextChunk();
+            };
+            function readNextChunk() {
+                reader.readAsArrayBuffer(file.slice(offset, offset + CHUNK_SIZE));
+            }
+            readNextChunk();
+        } else {
+            // 未连接时的本地预览测试
+            if (file.type.startsWith('image/')) {
+                appendMsg('me', `<img src="${fileUrl}" onclick="window.open('${fileUrl}')">`, time, '本地预览', 'img_' + Date.now());
+            } else {
+                const fileHtml = `<div class="file-card">📄 <div class="file-info"><b>${file.name} (本地预览)</b><br><a href="${fileUrl}" download="${file.name}">点击下载文件</a></div></div>`;
+                appendMsg('me', fileHtml, time, '本地预览', 'file_' + Date.now());
+            }
+        }
+        input.value = '';
+    }
+
+    // 自由音视频通话（未连接时点开可直接测试本地摄像头/麦克风预览）
+    async function startCall(callType) {
+        try {
+            localStream = await navigator.mediaDevices.getUserMedia({
+                audio: true,
+                video: callType === 'video'
+            });
+            document.getElementById('local-video').srcObject = localStream;
+            
+            // 如果连上了就通知对方
+            if (pc && pc.connectionState === 'connected') {
+                localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+                sendSignal({ type: 'CALL_REQUEST', callType });
+            }
+            showCallModal(callType, false);
+        } catch (e) {
+            alert("无法获取摄像头或麦克风权限，请检查浏览器设置！");
+        }
+    }
+
+    async function showCallModal(callType, isIncoming) {
+        document.getElementById('call-title').innerText = callType === 'video' ? '📹 视频通话 (预览中)' : '📞 语音通话 (预览中)';
+        document.getElementById('call-modal').style.display = 'flex';
+
+        if (isIncoming) {
+            document.getElementById('call-status').innerText = '收到远程通话请求...';
+            try {
+                localStream = await navigator.mediaDevices.getUserMedia({
+                    audio: true,
+                    video: callType === 'video'
+                });
+                document.getElementById('local-video').srcObject = localStream;
+                if (pc) localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+            } catch(e) {}
+        } else {
+            if (!pc || pc.connectionState !== 'connected') {
+                document.getElementById('call-status').innerText = '当前未联网，正在进行本地摄像头/麦克风独立预览测试';
+            }
+        }
+    }
+
+    function endCall() {
+        if (pc && pc.connectionState === 'connected') {
+            sendSignal({ type: 'CALL_END' });
+        }
+        closeCallModal();
+    }
+
+    function closeCallModal() {
+        if (localStream) {
+            localStream.getTracks().forEach(track => track.stop());
+        }
+        document.getElementById('call-modal').style.display = 'none';
+        document.getElementById('call-status').innerText = '等待接听...';
+    }
+
+    function appendMsg(sender, content, time, status, id) {
         const wrapper = document.createElement('div');
         wrapper.className = `msg-wrapper ${sender}`;
         wrapper.setAttribute('data-id', id || '');
 
         const bubble = document.createElement('div');
         bubble.className = 'msg-bubble';
-        bubble.innerText = text;
+        if (content.startsWith('<img') || content.startsWith('<div')) {
+            bubble.innerHTML = content;
+        } else {
+            bubble.innerText = content;
+        }
         wrapper.appendChild(bubble);
 
         const meta = document.createElement('div');
@@ -466,7 +645,6 @@
         chatBox.scrollTop = chatBox.scrollHeight;
     }
 
-    // 本地存储管理
     function saveMessageStorage(sender, text, time, status, id) {
         let history = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
         history.push({ sender, text, time, status, id });
@@ -477,24 +655,22 @@
         chatBox.innerHTML = '';
         let history = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
         history.forEach(m => {
-            appendMsg(m.sender, m.text, m.time, m.status || '已读', m.id, false);
+            appendMsg(m.sender, m.text, m.time, m.status || '已读', m.id);
         });
         chatBox.scrollTop = chatBox.scrollHeight;
     }
 
-    // 将我发出的所有消息状态更新为“已读”
     function markAllAsReadLocally() {
-        // 更新界面 DOM
         const tags = document.querySelectorAll('.status-tag');
         tags.forEach(tag => {
-            tag.innerText = '已读 ✓✓';
-            tag.style.color = '#34c759';
+            if(tag.innerText.includes('未读')) {
+                tag.innerText = '已读 ✓✓';
+                tag.style.color = '#34c759';
+            }
         });
-
-        // 更新 LocalStorage 中的状态
         let history = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
         history = history.map(m => {
-            if (m.sender === 'me') m.status = '已读 ✓✓';
+            if (m.sender === 'me' && m.status.includes('未读')) m.status = '已读 ✓✓';
             return m;
         });
         localStorage.setItem(STORAGE_KEY, JSON.stringify(history));
@@ -505,6 +681,21 @@
             localStorage.removeItem(STORAGE_KEY);
             chatBox.innerHTML = '';
         }
+    }
+
+    function showModal(title, tip, content, cb) {
+        modalTitle.innerText = title;
+        modalTip.innerText = tip;
+        modalText.value = content;
+        if (content) modalText.select();
+        modal.style.display = 'flex';
+        modalCallback = cb;
+    }
+    function closeModal() { modal.style.display = 'none'; }
+    function handleModalSubmit() {
+        const val = modalText.value;
+        closeModal();
+        if (modalCallback) modalCallback(val);
     }
 </script>
 
