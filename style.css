@@ -34,13 +34,13 @@ html, body {
 
 #plus-panel {
     display: none; background-color: #f7f7f7; border-top: 1px solid #d8d8d8;
-    padding: 24px 16px; grid-template-columns: repeat(4, 1fr); gap: 16px; flex-shrink: 0;
+    padding: 20px 16px; grid-template-columns: repeat(4, 1fr); gap: 16px; flex-shrink: 0;
 }
 #plus-panel.active { display: grid; }
 .grid-item { display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer; }
 .grid-icon {
-    width: 56px; height: 56px; background: #ffffff; border-radius: 12px;
-    display: flex; align-items: center; justify-content: center; font-size: 1.5rem;
+    width: 52px; height: 52px; background: #ffffff; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center; font-size: 1.4rem;
     box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
 .grid-label { font-size: 0.75rem; color: #555; }
