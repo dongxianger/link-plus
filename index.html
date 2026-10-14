@@ -1,35 +1,61 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>Link+ | 链+ - P2P私密直连</title>
-<link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Link+ | 链+ - P2P私密直连</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<header class="wx-header">
-<span class="header-left-title">Link+</span>
-<span class="header-right-credit">三藏制作</span>
-</header>
-<main id="chat-box">
-<div class="msg peer">
-<div class="bubble">Link+ P2P引擎已就绪：点击下方加号开始连接或测试。</div>
-</div>
-</main>
-<footer class="wx-footer">
-<input type="text" id="msg-input" class="text-input" placeholder="给 Link+ 发消息或文件..." autocomplete="off">
-<button class="icon-btn" id="plus-btn">+</button>
-</footer>
-<nav id="plus-panel">
-<div class="grid-item" id="btn-connect"><div class="grid-icon">🔗</div><span class="grid-label">建立直连</span></div>
-<div class="grid-item" id="btn-video"><div class="grid-icon">📹</div><span class="grid-label">打视频</span></div>
-<div class="grid-item" id="btn-voice"><div class="grid-icon">📞</div><span class="grid-label">打电话</span></div>
-<div class="grid-item" id="btn-file"><div class="grid-icon">📁</div><span class="grid-label">发文件</span></div>
-<div class="grid-item" id="btn-movie" style="display:none;"><div class="grid-icon">📥</div><span class="grid-label">蓝光电影</span></div>
-<div class="grid-item" id="btn-photo"><div class="grid-icon">🖼️</div><span class="grid-label">发照片</span></div>
-</nav>
-<input type="file" id="real-file-input" style="display: none;">
-<input type="file" id="real-photo-input" accept="image/*" style="display: none;">
-<script src="app.js"></script>
+
+  <!-- 顶部导航栏 -->
+  <header class="wx-header">
+    <div class="header-left-title">Link+</div>
+    <div class="header-right-credit">三藏制作</div>
+  </header>
+
+  <!-- 中间聊天/日志消息区 -->
+  <div id="chat-box">
+    <div class="msg peer">
+      <div class="bubble">Link+ P2P引擎已就绪：点击下方加号开始连接或测试。</div>
+    </div>
+  </div>
+
+  <!-- 底部加号弹出面板 (2行3列) -->
+  <div id="plus-panel">
+    <div class="grid-item" id="btn-text">
+      <span class="grid-icon">💬</span>
+      <span class="grid-label">文字消息</span>
+    </div>
+    <div class="grid-item" id="btn-file">
+      <span class="grid-icon">📁</span>
+      <span class="grid-label">文件传输</span>
+    </div>
+    <div class="grid-item" id="btn-video">
+      <span class="grid-icon">📹</span>
+      <span class="grid-label">视频通话</span>
+    </div>
+    <div class="grid-item" id="btn-screen">
+      <span class="grid-icon">📺</span>
+      <span class="grid-label">屏幕共享</span>
+    </div>
+    <div class="grid-item" id="btn-ping">
+      <span class="grid-icon">⚡</span>
+      <span class="grid-label">延迟测试</span>
+    </div>
+    <div class="grid-item" id="btn-settings">
+      <span class="grid-icon">⚙️</span>
+      <span class="grid-label">连接设置</span>
+    </div>
+  </div>
+
+  <!-- 底部输入栏 -->
+  <footer class="wx-footer">
+    <button class="icon-btn" id="toggle-panel-btn">+</button>
+    <input type="text" id="message-input" class="text-input" placeholder="输入消息..." autocomplete="off">
+    <button class="icon-btn" id="send-btn" style="font-size:16px;">发送</button>
+  </footer>
+
+  <script src="app.js"></script>
 </body>
 </html>
