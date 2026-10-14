@@ -1,256 +1,63 @@
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
+/* style.css */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body, html { width: 100%; height: 100%; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #EDEDED; display: flex; justify-content: center; align-items: center; }
 
-/* 视口锁死，严禁整体滚动 */
-html, body {
-  width: 100%;
-  height: 100%;
-  height: 100vh;
-  height: 100dvh;
-  overflow: hidden;
-  position: fixed;
-  background-color: #ededed; /* 微信经典浅灰底色 */
-  color: #000;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-}
+.app-container { width: 100%; max-width: 480px; height: 100%; max-height: 100vh; background-color: #F7F7F7; display: flex; flex-direction: column; position: relative; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
 
-body {
-  display: flex;
-  flex-direction: column;
-}
+/* 顶部标题栏 */
+.app-header { height: 50px; background-color: #EDEDED; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; border-bottom: 1px solid #DDDDDD; font-size: 17px; font-weight: 500; color: #000; }
+.header-title { flex: 1; text-align: center; }
 
-/* 顶部导航栏 */
-.wx-header {
-  height: 48px;
-  min-height: 48px;
-  background-color: #ededed;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0 16px;
-  border-bottom: 1px solid #ddd;
-  flex-shrink: 0;
-}
+/* 房间连接控制条 */
+.room-bar { background-color: #f0f0f0; padding: 8px 16px; display: flex; gap: 8px; border-bottom: 1px solid #ddd; align-items: center; }
+.room-bar input { flex: 1; padding: 6px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; outline: none; }
+.room-bar button { padding: 6px 12px; background-color: #07C160; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500; }
 
-.header-left-title {
-  font-size: 16px;
-  font-weight: bold;
-  color: #000;
-}
+/* 中部消息与音视频展示区 */
+.chat-messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; position: relative; }
 
-.header-right-credit {
-  font-size: 16px;
-  font-weight: bold;
-  color: #000;
-}
+/* 消息行与时间戳样式 */
+.message-container { display: flex; flex-direction: column; width: 100%; margin-bottom: 4px; }
+.message-container.incoming { align-items: flex-start; }
+.message-container.outgoing { align-items: flex-end; }
 
-/* 中间消息区 */
-#chat-box {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  -webkit-overflow-scrolling: touch;
-}
+.message-time { font-size: 11px; color: #b2b2b2; margin-bottom: 2px; padding: 0 4px; }
+.message-row { display: flex; width: 100%; }
+.message-row.incoming { justify-content: flex-start; }
+.message-row.outgoing { justify-content: flex-end; }
+.message-bubble { max-width: 70%; padding: 10px 14px; border-radius: 4px; font-size: 15px; line-height: 1.4; word-break: break-all; }
+.incoming .message-bubble { background-color: #FFFFFF; color: #000; }
+.outgoing .message-bubble { background-color: #95EC69; color: #000; }
 
-.msg {
-  display: flex;
-  max-width: 80%;
-}
+/* 音视频通话悬浮窗容器 */
+.media-container { display: none; flex-direction: column; background: #000; border-radius: 8px; overflow: hidden; margin-bottom: 10px; position: relative; width: 100%; height: 260px; }
+.media-container.active { display: flex; }
+video { width: 100%; height: 100%; object-fit: cover; background: #222; }
+#remoteVideo { width: 100%; height: 100%; }
+#localVideo { position: absolute; right: 10px; top: 10px; width: 90px; height: 120px; border-radius: 6px; border: 2px solid #fff; object-fit: cover; }
+.call-hangup-btn { position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); background: #ff4d4f; color: white; border: none; padding: 6px 16px; border-radius: 20px; cursor: pointer; font-size: 14px; z-index: 10; }
 
-.msg.peer { align-self: flex-start; }
-.msg.me { align-self: flex-end; }
+/* 底部输入栏区 */
+.chat-footer { background-color: #F7F7F7; border-top: 1px solid #DDDDDD; display: flex; flex-direction: column; }
+.input-bar { display: flex; align-items: center; padding: 8px 12px; gap: 8px; min-height: 56px; }
+.icon-btn { font-size: 22px; background: none; border: none; cursor: pointer; color: #2C2C2C; padding: 2px; display: flex; align-items: center; justify-content: center; }
+.text-input { flex: 1; height: 38px; background: #FFFFFF; border: none; border-radius: 4px; padding: 0 10px; font-size: 16px; outline: none; }
 
-.bubble {
-  background-color: transparent;
-  color: #000;
-  padding: 8px 12px;
-  border-radius: 6px;
-  font-size: 15px;
-  line-height: 1.4;
-  word-break: break-all;
-}
+/* 发送按钮 */
+.send-btn { background-color: #07C160; color: white; border: none; border-radius: 4px; padding: 0 12px; height: 38px; font-size: 14px; font-weight: 500; cursor: pointer; transition: background 0.2s; }
+.send-btn:hover { background-color: #06ad56; }
 
-.msg.me .bubble {
-  background-color: #95ec69; /* 微信绿 */
-  color: #000;
-}
+/* 加号扩展面板（4宫格排布） */
+.extension-panel { display: none; height: 180px; background-color: #F7F7F7; border-top: 1px solid #E5E5E5; padding: 20px 16px; grid-template-columns: repeat(4, 1fr); gap: 20px 12px; }
+.extension-panel.active { display: grid; }
+.grid-item { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; cursor: pointer; }
+.grid-icon { width: 50px; height: 50px; background-color: #FFFFFF; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 22px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+.grid-label { font-size: 12px; color: #7F7F7F; }
 
-/* 底部输入栏 */
-.wx-footer {
-  min-height: 60px;
-  background-color: #f7f7f7;
-  display: flex;
-  align-items: center;
-  padding: 8px 12px;
-  gap: 8px;
-  border-top: 1px solid #ddd;
-  flex-shrink: 0;
-  width: 100%;
-  z-index: 2;
-}
-
-.text-input {
-  flex: 1;
-  height: 40px;
-  background-color: #fff;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  color: #000;
-  padding: 0 12px;
-  font-size: 15px;
-  outline: none;
-}
-
-.text-input:focus {
-  border-color: #07c160;
-}
-
-.icon-btn {
-  width: 40px;
-  height: 40px;
-  background: transparent;
-  border: none;
-  color: #333;
-  font-size: 28px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 4px;
-  padding: 0;
-  flex-shrink: 0;
-}
-
-.icon-btn:active {
-  background-color: #e5e5e5;
-}
-
-.send-btn {
-  height: 36px;
-  padding: 0 12px;
-  background-color: #07c160;
-  border: none;
-  border-radius: 4px;
-  color: #fff;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  flex-shrink: 0;
-  display: none;
-}
-
-.send-btn:active {
-  background-color: #06ad56;
-}
-
-/* 严格 1:1 微信风格的底部功能面板：4列网格 */
-#plus-panel {
-  display: none;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 12px 10px;
-  padding: 20px 16px;
-  background-color: #f7f7f7;
-  border-top: 1px solid #ddd;
-  flex-shrink: 0;
-  width: 100%;
-}
-
-#plus-panel.active {
-  display: grid;
-}
-
-/* 微信 1:1 图标卡片：纯白背景、大圆角、无边框、精致方正 */
-.grid-item {
-  background-color: #ffffff; 
-  padding: 16px 0;
-  border-radius: 14px; /* 微信标志性的大圆角 */
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  cursor: pointer;
-  border: none; /* 微信原版没有边框 */
-  box-shadow: none;
-}
-
-.grid-item:active {
-  background-color: #e3e3e3;
-}
-
-.grid-icon {
-  font-size: 28px;
-}
-
-.grid-label {
-  font-size: 11px;
-  color: #555;
-  font-weight: 400;
-  white-space: nowrap;
-}
-
-/* 视频悬浮窗及控制条 */
-.draggable-video-box {
-  width: 200px;
-  height: 150px;
-  background: #000;
-  border-radius: 8px;
-  overflow: hidden;
-  position: relative;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-  touch-action: none;
-}
-
-.draggable-video-box.fullscreen {
-  position: fixed !important;
-  top: 0 !important;
-  left: 0 !important;
-  width: 100vw !important;
-  height: 100vh !important;
-  border-radius: 0 !important;
-  z-index: 9999;
-  transform: none !important;
-}
-
-.draggable-video-box video {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.video-controls {
-  position: absolute;
-  bottom: 8px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  gap: 8px;
-  background: rgba(0,0,0,0.6);
-  padding: 4px 8px;
-  border-radius: 20px;
-}
-
-.video-ctrl-btn {
-  background: rgba(255,255,255,0.2);
-  border: none;
-  color: white;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  font-size: 12px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.video-ctrl-btn.hangup {
-  background: #ff4d4f;
+/* 录音中的呼吸灯特效样式 */
+.grid-icon.recording { background-color: #ff4d4f; color: white; animation: pulse 1.2s infinite; }
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.08); }
+    100% { transform: scale(1); }
 }
