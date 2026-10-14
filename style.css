@@ -1,273 +1,44 @@
-* {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-}
+/* style.css */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body, html { width: 100%; height: 100%; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #EDEDED; display: flex; justify-content: center; align-items: center; }
 
-body {
-    background-color: #f4f6f9;
-    color: #333;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100vh;
-    overflow: hidden;
-}
+.app-container { width: 100%; max-width: 480px; height: 100%; max-height: 100vh; background-color: #F7F7F7; display: flex; flex-direction: column; position: relative; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
 
-.app-container {
-    width: 100%;
-    max-width: 480px;
-    height: 100%;
-    background: #ffffff;
-    display: flex;
-    flex-direction: column;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-}
+/* 顶部标题栏 */
+.app-header { height: 50px; background-color: #EDEDED; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; border-bottom: 1px solid #DDDDDD; font-size: 17px; font-weight: 500; color: #000; }
+.header-title { flex: 1; text-align: center; }
 
-@media (min-width: 481px) {
-    .app-container {
-        height: 88vh;
-        border-radius: 12px;
-    }
-}
+/* 房间连接控制条 */
+.room-bar { background-color: #f0f0f0; padding: 8px 16px; display: flex; gap: 8px; border-bottom: 1px solid #ddd; align-items: center; }
+.room-bar input { flex: 1; padding: 6px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; outline: none; }
+.room-bar button { padding: 6px 12px; background-color: #07C160; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500; }
 
-.app-header {
-    padding: 10px 14px;
-    background: #ffffff;
-    border-bottom: 1px solid #eaeaea;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-}
+/* 中部消息与音视频展示区 */
+.chat-messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 16px; position: relative; }
+.message-row { display: flex; width: 100%; }
+.message-row.incoming { justify-content: flex-start; }
+.message-row.outgoing { justify-content: flex-end; }
+.message-bubble { max-width: 70%; padding: 10px 14px; border-radius: 4px; font-size: 15px; line-height: 1.4; word-break: break-all; }
+.incoming .message-bubble { background-color: #FFFFFF; color: #000; }
+.outgoing .message-bubble { background-color: #95EC69; color: #000; }
 
-.logo-area {
-    display: flex;
-    align-items: baseline;
-    gap: 4px;
-}
+/* 音视频通话悬浮窗容器 */
+.media-container { display: none; flex-direction: column; background: #000; border-radius: 8px; overflow: hidden; margin-bottom: 10px; position: relative; width: 100%; height: 260px; }
+.media-container.active { display: flex; }
+video { width: 100%; height: 100%; object-fit: cover; background: #222; }
+#remoteVideo { width: 100%; height: 100%; }
+#localVideo { position: absolute; right: 10px; top: 10px; width: 90px; height: 120px; border-radius: 6px; border: 2px solid #fff; object-fit: cover; }
+.call-hangup-btn { position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); background: #ff4d4f; color: white; border: none; padding: 6px 16px; border-radius: 20px; cursor: pointer; font-size: 14px; z-index: 10; }
 
-.logo-area h1 {
-    font-size: 18px;
-    color: #111;
-    font-weight: 700;
-}
+/* 底部输入栏区 */
+.chat-footer { background-color: #F7F7F7; border-top: 1px solid #DDDDDD; display: flex; flex-direction: column; }
+.input-bar { display: flex; align-items: center; padding: 8px 12px; gap: 8px; min-height: 56px; }
+.icon-btn { font-size: 24px; background: none; border: none; cursor: pointer; color: #5B5B5B; padding: 4px; }
+.text-input { flex: 1; height: 38px; background: #FFFFFF; border: none; border-radius: 4px; padding: 0 10px; font-size: 16px; outline: none; }
 
-.sub-title {
-    font-size: 11px;
-    color: #888;
-}
-
-.room-control {
-    display: flex;
-    gap: 6px;
-}
-
-.room-control input {
-    width: 95px;
-    padding: 5px 8px;
-    border: 1px solid #ddd;
-    border-radius: 6px;
-    font-size: 13px;
-    outline: none;
-}
-
-.room-control button {
-    padding: 5px 12px;
-    background: #007aff;
-    color: white;
-    border: none;
-    border-radius: 6px;
-    font-size: 13px;
-    cursor: pointer;
-}
-
-.status-badge {
-    font-size: 11px;
-    color: #e67e22;
-    white-space: nowrap;
-}
-
-.main-content {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    position: relative;
-    overflow: hidden;
-    background: #f9f9fb;
-}
-
-.media-container {
-    display: none;
-    flex-direction: column;
-    background: #000;
-    position: relative;
-    width: 100%;
-    height: 180px;
-}
-
-.media-container.active {
-    display: flex;
-}
-
-#remoteVideo {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
-
-.media-controls {
-    position: absolute;
-    bottom: 8px;
-    right: 8px;
-}
-
-.danger-btn {
-    background: #ff3b30;
-    color: white;
-    border: none;
-    padding: 4px 10px;
-    border-radius: 4px;
-    font-size: 12px;
-    cursor: pointer;
-}
-
-.chat-messages {
-    flex: 1;
-    padding: 14px;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-
-.message-container {
-    display: flex;
-    flex-direction: column;
-    max-width: 80%;
-}
-
-.message-container.incoming {
-    align-self: flex-start;
-}
-
-.message-container.outgoing {
-    align-self: flex-end;
-}
-
-.message-time {
-    font-size: 10px;
-    color: #aaa;
-    margin-bottom: 2px;
-    text-align: center;
-}
-
-.message-bubble {
-    padding: 10px 14px;
-    border-radius: 12px;
-    font-size: 14px;
-    line-height: 1.4;
-    word-break: break-all;
-}
-
-.incoming .message-bubble {
-    background: #e9eef3;
-    color: #111;
-    border-top-left-radius: 2px;
-}
-
-.outgoing .message-bubble {
-    background: #007aff;
-    color: white;
-    border-top-right-radius: 2px;
-}
-
-.chat-image {
-    max-width: 150px;
-    max-height: 150px;
-    border-radius: 6px;
-    cursor: pointer;
-}
-
-.app-footer {
-    background: #ffffff;
-    border-top: 1px solid #eaeaea;
-    display: flex;
-    flex-direction: column;
-}
-
-.input-row {
-    padding: 10px 14px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.plus-btn {
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    background: #f0f0f0;
-    border: none;
-    font-size: 20px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #555;
-}
-
-.input-row input {
-    flex: 1;
-    padding: 8px 12px;
-    border: 1px solid #ddd;
-    border-radius: 20px;
-    font-size: 14px;
-    outline: none;
-    background: #f4f6f9;
-}
-
-.send-btn {
-    padding: 8px 14px;
-    background: #007aff;
-    color: white;
-    border: none;
-    border-radius: 20px;
-    font-size: 14px;
-    cursor: pointer;
-}
-
-.extension-panel {
-    display: none;
-    grid-template-columns: repeat(5, 1fr);
-    padding: 12px;
-    background: #f7f8fa;
-    border-top: 1px solid #eee;
-    gap: 6px;
-}
-
-.extension-panel.active {
-    display: grid;
-}
-
-.grid-item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 4px;
-    background: white;
-    padding: 10px 2px;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.03);
-    cursor: pointer;
-}
-
-.grid-item .icon {
-    font-size: 20px;
-}
-
-.grid-item .label {
-    font-size: 10px;
-    color: #666;
-}
+/* 加号扩展面板（扩充为多宫格，容纳文件、音视频通话等） */
+.extension-panel { display: none; height: 180px; background-color: #F7F7F7; border-top: 1px solid #E5E5E5; padding: 20px 16px; grid-template-columns: repeat(4, 1fr); gap: 20px 12px; }
+.extension-panel.active { display: grid; }
+.grid-item { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; cursor: pointer; }
+.grid-icon { width: 50px; height: 50px; background-color: #FFFFFF; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 22px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+.grid-label { font-size: 12px; color: #7F7F7F; }

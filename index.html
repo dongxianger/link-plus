@@ -2,84 +2,62 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Link+ | 链+</title>
-    <!-- 引入 PeerJS 作为信令备用兜底 -->
-    <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Link+ P2P</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="app-container">
-        <!-- 顶部：LOGO、房间号与连接状态 -->
-        <header class="app-header">
-            <div class="logo-area">
-                <h1>Link+</h1>
-                <span class="sub-title">链+</span>
-            </div>
-            <div class="room-control">
-                <input type="text" id="roomIdInput" placeholder="输入房间号" />
-                <button id="joinRoomBtn">连接</button>
-            </div>
-            <div id="connectionStatus" class="status-badge">未连接</div>
-        </header>
 
-        <!-- 中部：聊天与音视频展示区 -->
-        <main class="main-content">
-            <div id="mediaContainer" class="media-container">
-                <video id="remoteVideo" autoplay playsinline></video>
-                <video id="videoElement" autoplay playsinline muted style="display:none;"></video>
-                <div class="media-controls">
-                    <button id="hangupCallBtn" class="danger-btn">挂断</button>
-                </div>
-            </div>
-
-            <div id="chatMessages" class="chat-messages">
-                <div class="message-container incoming">
-                    <div class="message-time">系统</div>
-                    <div class="message-row incoming">
-                        <div class="message-bubble">欢迎使用 Link+，输入相同房间号即可开始异地 P2P 直连。</div>
-                    </div>
-                </div>
-            </div>
-        </main>
-
-        <!-- 底部：完美的输入框与扩展面板 -->
-        <footer class="app-footer">
-            <div class="input-row">
-                <button id="togglePlusBtn" class="plus-btn">+</button>
-                <input type="text" id="messageInput" placeholder="发消息..." />
-                <button id="sendTextBtn" class="send-btn">发送</button>
-            </div>
-
-            <!-- 5宫格多功能扩展面板 (文件、图片、视频、语音通话、录音) -->
-            <div id="extensionPanel" class="extension-panel">
-                <div class="grid-item" onclick="document.getElementById('fileInput').click()">
-                    <span class="icon">📁</span>
-                    <span class="label">文件</span>
-                </div>
-                <div class="grid-item" onclick="document.getElementById('imageInput').click()">
-                    <span class="icon">🖼️</span>
-                    <span class="label">图片</span>
-                </div>
-                <div class="grid-item" id="startVideoCallBtn">
-                    <span class="icon">📹</span>
-                    <span class="label">视频</span>
-                </div>
-                <div class="grid-item" id="startVoiceCallBtn">
-                    <span class="icon">📞</span>
-                    <span class="label">语音通话</span>
-                </div>
-                <div class="grid-item" id="recordVoiceBtn">
-                    <span class="icon" id="recordIcon">🎤</span>
-                    <span class="label" id="recordLabel">录音</span>
-                </div>
-            </div>
-
-            <input type="file" id="fileInput" style="display: none;" />
-            <input type="file" id="imageInput" accept="image/*" style="display: none;" />
-        </footer>
+<div class="app-container">
+    <!-- 顶部标题栏 -->
+    <div class="app-header">
+        <div class="header-title" id="connectionStatus">未连接信令服务器</div>
     </div>
 
-    <script src="app.js"></script>
+    <!-- 房间连接控制条 -->
+    <div class="room-bar">
+        <input type="text" id="roomIdInput" placeholder="输入房间号..." />
+        <button id="joinRoomBtn">加入房间</button>
+    </div>
+
+    <!-- 中部消息与音视频展示区 -->
+    <div class="chat-messages" id="chatMessages">
+        <!-- 音视频通话悬浮窗容器 -->
+        <div class="media-container" id="mediaContainer">
+            <video id="remoteVideo" autoplay playsinline></video>
+            <video id="localVideo" autoplay playsinline muted></video>
+            <button class="call-hangup-btn" id="hangupCallBtn">挂断</button>
+        </div>
+    </div>
+
+    <!-- 底部输入栏区 -->
+    <div class="chat-footer">
+        <div class="input-bar">
+            <input type="text" class="text-input" id="messageInput" placeholder="发送消息..." disabled />
+            <button class="icon-btn" id="togglePlusBtn">➕</button>
+            <button class="icon-btn" id="sendMsgBtn">📤</button>
+        </div>
+
+        <!-- 加号扩展面板 -->
+        <div class="extension-panel" id="extensionPanel">
+            <div class="grid-item" id="startVideoCallBtn">
+                <div class="grid-icon">📹</div>
+                <div class="grid-label">视频通话</div>
+            </div>
+            <div class="grid-item" id="startVoiceCallBtn">
+                <div class="grid-icon">🎤</div>
+                <div class="grid-label">语音通话</div>
+            </div>
+            <div class="grid-item" onclick="document.getElementById('fileInput').click()">
+                <div class="grid-icon">📁</div>
+                <div class="grid-label">发送文件</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<input type="file" id="fileInput" style="display: none;" />
+
+<script src="app.js"></script>
 </body>
 </html>
