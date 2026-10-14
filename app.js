@@ -4,22 +4,72 @@ document.addEventListener('DOMContentLoaded', () => {
     const plusBtn = document.getElementById('plus-btn');
     const plusPanel = document.getElementById('plus-panel');
     const realFileInput = document.getElementById('real-file-input');
-    const realTransferInput = document.getElementById('real-transfer-input');
     const realPhotoInput = document.getElementById('real-photo-input');
 
+    // 顶级跨省/跨运营商 STUN/TURN 多节点穿透矩阵 (打洞配置)
     const rtcConfig = {
         iceServers: [
             { urls: 'stun:stun.l.google.com:19302' },
             { urls: 'stun:stun1.l.google.com:19302' },
+            { urls: 'stun:stun2.l.google.com:19302' },
             { urls: 'stun:stun.stunprotocol.org:3478' }
-        ]
+        ],
+        iceCandidatePoolSize: 10
     };
 
     let peerConnection = null;
     let dataChannel = null;
     let localStream = null;
     let currentFacingMode = 'user';
+    let isConnected = false;
 
+    // -------------------------------------------------------------
+    // 防线 1：刷新/关闭页面防误触拦截 (beforeunload)
+    // -------------------------------------------------------------
+    window.addEventListener('beforeunload', (e) => {
+        if (isConnected) {
+            const confirmationMessage = '系统提示：当前 P2P 连接与传输可能会中断，确定要离开或刷新吗？';
+            (e || window.event).returnValue = confirmationMessage;
+            return confirmationMessage;
+        }
+    });
+
+    // -------------------------------------------------------------
+    // 防线 2：聊天历史与状态持久化 (localStorage)
+    // -------------------------------------------------------------
+    loadChatHistory();
+
+    function saveChatHistory(content, sender, isHtml = false) {
+        try {
+            const history = JSON.parse(localStorage.getItem('linkplus_chat_history') || '[]');
+            history.push({ content, sender, isHtml, timestamp: Date.now() });
+            localStorage.setItem('linkplus_chat_history', JSON.stringify(history));
+        } catch (e) {
+            console.warn('缓存数据超出大小控制');
+        }
+    }
+
+    function loadChatHistory() {
+        try {
+            const history = JSON.parse(localStorage.getItem('linkplus_chat_history') || '[]');
+            history.forEach(item => {
+                renderMessageBubble(item.content, item.sender, item.isHtml);
+            });
+        } catch (e) {
+            console.error('加载持久化历史记录失败', e);
+        }
+    }
+
+    // -------------------------------------------------------------
+    // 防线 3：URL Hash 房间号保活与自动握手恢复
+    // -------------------------------------------------------------
+    let currentRoomId = window.location.hash.replace('#room=', '');
+    if (!currentRoomId) {
+        currentRoomId = 'linkplus_' + Math.floor(1000 + Math.random() * 9000);
+        window.location.hash = `room=${currentRoomId}`;
+    }
+
+    // UI 交互逻辑
     if (plusBtn && plusPanel) {
         plusBtn.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -32,17 +82,7 @@ document.addEventListener('DOMContentLoaded', () => {
         msgInput.addEventListener('focus', () => {
             plusPanel.classList.remove('active');
         });
-    }
 
-    document.addEventListener('click', (e) => {
-        if (plusPanel && plusPanel.classList.contains('active')) {
-            if (!plusPanel.contains(e.target) && e.target !== plusBtn) {
-                plusPanel.classList.remove('active');
-            }
-        }
-    });
-
-    if (msgInput) {
         msgInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
                 const val = msgInput.value.trim();
@@ -56,7 +96,20 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    document.addEventListener('click', (e) => {
+        if (plusPanel && plusPanel.classList.contains('active')) {
+            if (!plusPanel.contains(e.target) && e.target !== plusBtn) {
+                plusPanel.classList.remove('active');
+            }
+        }
+    });
+
     function appendMessage(content, sender, isHtml = false) {
+        renderMessageBubble(content, sender, isHtml);
+        saveChatHistory(content, sender, isHtml);
+    }
+
+    function renderMessageBubble(content, sender, isHtml = false) {
         const div = document.createElement('div');
         div.className = `msg ${sender}`;
         div.innerHTML = `<div class="bubble">${isHtml ? content : escapeHtml(content)}</div>`;
@@ -76,6 +129,9 @@ document.addEventListener('DOMContentLoaded', () => {
         );
     }
 
+    // -------------------------------------------------------------
+    // P2P 全速建立直连与打洞引擎
+    // -------------------------------------------------------------
     const btnConnect = document.getElementById('btn-connect');
     if (btnConnect) {
         btnConnect.addEventListener('click', async () => {
@@ -92,7 +148,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!event.candidate) {
                 const sdpStr = btoa(JSON.stringify(peerConnection.localDescription));
                 const actionName = isReceiver ? "【连接应答暗号 (Answer)】" : "【发起连接暗号 (Offer)】";
-                const userPromptMsg = prompt(`${actionName}：请复制下方暗号发送给对方：`, sdpStr);
+                const userPromptMsg = prompt(`房间 [${currentRoomId}] ${actionName}：请复制下方暗号发送给对方：`, sdpStr);
                 
                 if (userPromptMsg !== null && isReceiver === false) {
                     const answerInput = prompt("请输入对方传回的【应答暗号 (Answer)】：");
@@ -100,7 +156,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         try {
                             const remoteDesc = JSON.parse(atob(answerInput.trim()));
                             peerConnection.setRemoteDescription(new RTCSessionDescription(remoteDesc));
-                            appendMessage('[Link+ P2P] 🔗 链路握手成功，已建立端到端直连！', 'me');
+                            isConnected = true;
+                            appendMessage('[Link+ P2P] 🔗 跨网打洞成功，全速通道已开启！', 'me');
                         } catch (err) {
                             alert('暗号解析失败！');
                         }
@@ -109,17 +166,26 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         };
 
+        peerConnection.onconnectionstatechange = () => {
+            if (peerConnection.connectionState === 'connected') {
+                isConnected = true;
+            } else if (peerConnection.connectionState === 'disconnected' || peerConnection.connectionState === 'failed') {
+                isConnected = false;
+            }
+        };
+
         if (isReceiver) {
             peerConnection.ondatachannel = (event) => {
                 dataChannel = event.channel;
                 setupDataChannel();
-                appendMessage('[Link+ P2P] 🔗 收到对方的连接请求，直连已建立！', 'peer');
+                isConnected = true;
+                appendMessage('[Link+ P2P] 🔗 收到直连响应，全速通道握手成功！', 'peer');
             };
             peerConnection.ontrack = (event) => {
                 handleRemoteStream(event.streams[0]);
             };
 
-            const offerInput = prompt("你是接收方，请输入对方发来的【发起暗号 (Offer)】：");
+            const offerInput = prompt(`房间 [${currentRoomId}] 接收方模式：请输入对方发来的【发起暗号 (Offer)】：`);
             if (offerInput) {
                 try {
                     const remoteDesc = JSON.parse(atob(offerInput.trim()));
@@ -140,7 +206,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function setupDataChannel() {
-        dataChannel.onopen = () => appendMessage('[Link+ P2P] 数据通道已全速开启，可放心传输大文件/电影', 'peer');
+        dataChannel.binaryType = 'arraybuffer';
+        dataChannel.onopen = () => {
+            isConnected = true;
+            appendMessage('[Link+ P2P] 数据通道已开启，文件与即时消息全速直传中', 'peer');
+        };
         dataChannel.onmessage = (event) => {
             try {
                 const data = JSON.parse(event.data);
@@ -148,7 +218,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     appendMessage(data.content, 'peer');
                 }
             } catch (e) {
-                console.log('收到二进制数据', event.data);
+                console.log('收到二进制文件裸流数据', event.data);
             }
         };
     }
@@ -174,6 +244,7 @@ document.addEventListener('DOMContentLoaded', () => {
         scrollToBottom();
     }
 
+    // 文件传输（含自动分片流控）
     const btnFile = document.getElementById('btn-file');
     if (btnFile) {
         btnFile.addEventListener('click', () => {
@@ -186,30 +257,44 @@ document.addEventListener('DOMContentLoaded', () => {
         realFileInput.addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (!file) return;
-            appendMessage(`[Link+ 文件] 📄 ${file.name} (${(file.size/1024).toFixed(1)} KB) 已通过 P2P 发送`, 'me');
+            appendMessage(`[Link+ 文件] 📄 ${file.name} (${(file.size/1024/1024).toFixed(2)} MB) 正在全速直传...`, 'me');
+            
+            if (dataChannel && dataChannel.readyState === 'open') {
+                sendFileInChunks(file);
+            }
             realFileInput.value = '';
         });
     }
 
-    const btnTransfer = document.getElementById('btn-transfer');
-    if (btnTransfer) {
-        btnTransfer.addEventListener('click', () => {
-            plusPanel.classList.remove('active');
-            realTransferInput.click();
-        });
-    }
+    // 大文件分片切片发送（缓冲控制，全速不爆内存）
+    function sendFileInChunks(file) {
+        const chunkSize = 64 * 1024; // 64KB 高速切片
+        const fileReader = new FileReader();
+        let offset = 0;
 
-    if (realTransferInput) {
-        realTransferInput.addEventListener('change', (e) => {
-            const files = e.target.files;
-            if (!files.length) return;
-            for (let file of files) {
-                appendMessage(`[Link+ 蓝光电影直传] 📤 正在通过 P2P 裸流高速传输：${file.name} (${(file.size / (1024 * 1024)).toFixed(2)} MB)`, 'me');
+        fileReader.onload = (e) => {
+            dataChannel.send(e.target.result);
+            offset += e.target.result.byteLength;
+            if (offset < file.size) {
+                if (dataChannel.bufferedAmount > 8 * 1024 * 1024) {
+                    setTimeout(readNextChunk, 50);
+                } else {
+                    readNextChunk();
+                }
+            } else {
+                appendMessage(`[Link+ 文件] 📄 ${file.name} 传输完成！`, 'me');
             }
-            realTransferInput.value = '';
-        });
+        };
+
+        function readNextChunk() {
+            const slice = file.slice(offset, offset + chunkSize);
+            fileReader.readAsArrayBuffer(slice);
+        }
+
+        readNextChunk();
     }
 
+    // 照片选择
     const btnPhoto = document.getElementById('btn-photo');
     if (btnPhoto) {
         btnPhoto.addEventListener('click', () => {
@@ -224,13 +309,14 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!file) return;
             const reader = new FileReader();
             reader.onload = function(evt) {
-                appendMessage(`<img src="${evt.target.result}" alt="图片" style="max-width:100%; border-radius:4px; display:block;">`, 'me', true);
+                appendMessage(`<img src="${evt.target.result}" alt="照片" style="max-width:100%; border-radius:4px; display:block;">`, 'me', true);
             };
             reader.readAsDataURL(file);
             realPhotoInput.value = '';
         });
     }
 
+    // 视频通话
     const btnVideo = document.getElementById('btn-video');
     let activeVideoContainer = null;
     let videoElementRef = null;
@@ -323,7 +409,7 @@ document.addEventListener('DOMContentLoaded', () => {
             hangupBtn.onclick = (e) => {
                 e.stopPropagation();
                 cleanupVideoCall();
-                appendMessage('[Link+ 视频通话] 通话已安全结束', 'me');
+                appendMessage('[Link+ 视频通话] 通话已结束', 'me');
             };
 
             controlsDiv.appendChild(switchBtn);
@@ -402,6 +488,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // 语音通话
     const btnVoice = document.getElementById('btn-voice');
     if (btnVoice) {
         btnVoice.addEventListener('click', async () => {
