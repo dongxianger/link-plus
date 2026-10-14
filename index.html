@@ -18,10 +18,10 @@
         </div>
 
         <!-- 房间连接控制条 -->
-        <div class="room-bar" style="flex-direction: column; gap: 6px; align-items: stretch;">
+        <div class="room-bar">
             <div style="display: flex; gap: 6px;">
-                <input type="text" id="wsServerInput" placeholder="信令服务器地址 (如 wss://... 或 ws://你的IP:3000)" value="ws://localhost:3000" style="font-size: 12px;">
-                <button id="connectWsBtn" style="background-color: #333; font-size: 12px; padding: 6px 8px;">连接信令</button>
+                <input type="text" id="wsServerInput" placeholder="信令地址 (wss://... 或 ws://IP:3000)" value="ws://localhost:3000">
+                <button id="connectWsBtn" style="background-color: #333; font-size: 11px; padding: 4px 8px;">连接信令</button>
             </div>
             <div style="display: flex; gap: 6px;">
                 <input type="text" id="roomIdInput" placeholder="输入房间号（如：8888）">
@@ -40,7 +40,7 @@
             <div class="message-container incoming">
                 <div class="message-time">刚刚</div>
                 <div class="message-row incoming">
-                    <div class="message-bubble">欢迎使用 Link+ P2P 私密直连。请先配置公网信令地址并输入相同房间号开始跨镇直连！</div>
+                    <div class="message-bubble">欢迎使用 Link+ P2P 私密直连。输入相同房间号即可开始畅聊、文件快传、发送照片、音视频通话及语音消息！</div>
                 </div>
             </div>
         </div>
@@ -53,11 +53,15 @@
                 <button class="icon-btn" id="togglePlusBtn">➕</button>
             </div>
 
-            <!-- 加号扩展面板 -->
+            <!-- 加号扩展面板：1.文件快传 2.发送照片 3.视频通话 4.语音通话 5.发送语音 -->
             <div class="extension-panel" id="extensionPanel">
                 <div class="grid-item" onclick="document.getElementById('fileInput').click()">
                     <div class="grid-icon">📁</div>
                     <div class="grid-label">文件快传</div>
+                </div>
+                <div class="grid-item" onclick="document.getElementById('imageInput').click()">
+                    <div class="grid-icon">🖼️</div>
+                    <div class="grid-label">发送照片</div>
                 </div>
                 <div class="grid-item" id="startVideoCallBtn">
                     <div class="grid-icon">📹</div>
@@ -75,7 +79,9 @@
         </div>
     </div>
 
+    <!-- 隐藏的文件和图片选择器 -->
     <input type="file" id="fileInput" style="display: none;">
+    <input type="file" id="imageInput" accept="image/*" style="display: none;">
 
     <script src="app.js"></script>
 </body>

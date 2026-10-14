@@ -22,6 +22,7 @@ const chatMessages = document.getElementById('chatMessages');
 const togglePlusBtn = document.getElementById('togglePlusBtn');
 const extensionPanel = document.getElementById('extensionPanel');
 const fileInput = document.getElementById('fileInput');
+const imageInput = document.getElementById('imageInput');
 
 const mediaContainer = document.getElementById('mediaContainer');
 const localVideo = document.getElementById('localVideo');
@@ -41,7 +42,6 @@ function getCurrentTimeStr() {
     return `${hours}:${minutes}`;
 }
 
-// 动态连接信令服务器
 connectWsBtn.addEventListener('click', () => {
     const wsUrl = wsServerInput.value.trim();
     if (!wsUrl) return alert('请输入信令服务器地址');
@@ -52,12 +52,12 @@ connectWsBtn.addEventListener('click', () => {
     ws = new WebSocket(wsUrl);
 
     ws.onopen = () => {
-        statusEl.innerText = '信令服务器已连接，请输入房间号加入 🟢';
+        statusEl.innerText = '信令已连接，请输入房间号加入 🟢';
     };
 
     ws.onerror = () => {
-        statusEl.innerText = '信令服务器连接失败 🔴';
-        alert('无法连接到该信令服务器，请检查地址是否正确或网络是否畅通！');
+        statusEl.innerText = '信令连接失败 🔴';
+        alert('无法连接到信令服务器！');
     };
 
     ws.onclose = () => {
@@ -86,10 +86,8 @@ connectWsBtn.addEventListener('click', () => {
     };
 });
 
-// 默认点击自动连一次输入框里的地址
 connectWsBtn.click();
 
-// 加入房间
 joinBtn.addEventListener('click', () => {
     const roomId = roomIdInput.value.trim();
     if (!roomId) return alert('请输入房间号');
@@ -136,7 +134,7 @@ function setupDataChannel() {
         statusEl.innerText = 'P2P直连已断开 🔴';
     };
 
-    let incomingFile = { name: '', size: 0, type: '', buffer: [], receivedSize: 0 };
+    let incomingFile = { name: '', size: 0, type: '', isImage: false, buffer: [], receivedSize: 0 };
     let incomingAudio = { buffer: [], size: 0, receivedSize: 0 };
 
     dataChannel.onmessage = (event) => {
@@ -147,9 +145,12 @@ function setupDataChannel() {
                     incomingFile.name = msg.name;
                     incomingFile.size = msg.size;
                     incomingFile.type = msg.type;
+                    incomingFile.isImage = msg.isImage || false;
                     incomingFile.buffer = [];
                     incomingFile.receivedSize = 0;
-                    appendMessage(`收到文件传输请求: ${msg.name} (${(msg.size/1024/1024).toFixed(2)}MB)`, 'incoming');
+                    if (!incomingFile.isImage) {
+                        appendMessage(`收到文件: ${msg.name} (${(msg.size/1024/1024).toFixed(2)}MB)`, 'incoming');
+                    }
                     return;
                 }
                 if (msg.audioMeta) {
@@ -181,18 +182,20 @@ function setupDataChannel() {
             if (incomingFile.receivedSize >= incomingFile.size) {
                 const blob = new Blob(incomingFile.buffer, { type: incomingFile.type });
                 const url = URL.createObjectURL(blob);
-                appendFileMessage(incomingFile.name, url, 'incoming');
+                if (incomingFile.isImage) {
+                    appendImageMessage(url, 'incoming');
+                } else {
+                    appendFileMessage(incomingFile.name, url, 'incoming');
+                }
             }
         }
     };
 }
 
-// 扩展面板控制
 togglePlusBtn.addEventListener('click', () => {
     extensionPanel.classList.toggle('active');
 });
 
-// 发送文本
 function sendTextMessage() {
     const text = msgInput.value.trim();
     if (!text) return;
@@ -202,7 +205,7 @@ function sendTextMessage() {
         appendMessage(text, 'outgoing');
         msgInput.value = '';
     } else {
-        alert('请先建立 P2P 直连再发送消息！');
+        alert('请先建立 P2P 直连！');
     }
 }
 
@@ -211,7 +214,41 @@ msgInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') sendTextMessage();
 });
 
-// 录音发送
+imageInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (!dataChannel || dataChannel.readyState !== 'open') {
+        alert('请先建立 P2P 直连！');
+        return;
+    }
+
+    extensionPanel.classList.remove('active');
+    const localUrl = URL.createObjectURL(file);
+    appendImageMessage(localUrl, 'outgoing');
+
+    dataChannel.send(JSON.stringify({ fileMeta: true, name: file.name, size: file.size, type: file.type, isImage: true }));
+
+    const chunkSize = 16384;
+    let offset = 0;
+    const reader = new FileReader();
+
+    reader.onload = (evt) => {
+        dataChannel.send(evt.target.result);
+        offset += evt.target.result.byteLength;
+        if (offset < file.size) {
+            readNextChunk();
+        }
+    };
+
+    function readNextChunk() {
+        const slice = file.slice(offset, offset + chunkSize);
+        reader.readAsArrayBuffer(slice);
+    }
+
+    readNextChunk();
+});
+
 recordVoiceBtn.addEventListener('click', async () => {
     if (!dataChannel || dataChannel.readyState !== 'open') {
         alert('请先建立 P2P 直连！');
@@ -259,7 +296,6 @@ recordVoiceBtn.addEventListener('click', async () => {
     }
 });
 
-// 视频通话
 startVideoCallBtn.addEventListener('click', async () => {
     extensionPanel.classList.remove('active');
     try {
@@ -277,7 +313,6 @@ startVideoCallBtn.addEventListener('click', async () => {
     }
 });
 
-// 语音通话
 startVoiceCallBtn.addEventListener('click', async () => {
     extensionPanel.classList.remove('active');
     try {
@@ -303,7 +338,6 @@ hangupCallBtn.addEventListener('click', () => {
     appendMessage('通话已结束', 'outgoing');
 });
 
-// 万能文件快传
 fileInput.addEventListener('change', (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -316,7 +350,7 @@ fileInput.addEventListener('change', (e) => {
     extensionPanel.classList.remove('active');
     appendMessage(`正在发送文件: ${file.name}`, 'outgoing');
 
-    dataChannel.send(JSON.stringify({ fileMeta: true, name: file.name, size: file.size, type: file.type }));
+    dataChannel.send(JSON.stringify({ fileMeta: true, name: file.name, size: file.size, type: file.type, isImage: false }));
 
     const chunkSize = 16384;
     let offset = 0;
@@ -348,6 +382,22 @@ function appendMessage(text, type) {
         <div class="message-time">${timeStr}</div>
         <div class="message-row ${type}">
             <div class="message-bubble">${text}</div>
+        </div>
+    `;
+    chatMessages.appendChild(container);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+function appendImageMessage(url, type) {
+    const timeStr = getCurrentTimeStr();
+    const container = document.createElement('div');
+    container.className = `message-container ${type}`;
+    container.innerHTML = `
+        <div class="message-time">${timeStr}</div>
+        <div class="message-row ${type}">
+            <div class="message-bubble" style="padding: 4px;">
+                <img src="${url}" class="chat-image" onclick="window.open('${url}')">
+            </div>
         </div>
     `;
     chatMessages.appendChild(container);
