@@ -1,87 +1,87 @@
-<!-- index.html -->
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Link+ | 链+ - P2P私密直连</title>
+    <title>Link+ | 链+</title>
+    <!-- 引入 PeerJS 库作为信令底层备用支持 -->
+    <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-
     <div class="app-container">
-        <!-- 顶部标题栏 -->
-        <div class="app-header">
-            <span>&lt;</span>
-            <div class="header-title" id="connectionStatus">Link+ (未连接)</div>
-            <span>···</span>
-        </div>
-
-        <!-- 房间连接控制条 -->
-        <div class="room-bar">
-            <div style="display: flex; gap: 6px;">
-                <input type="text" id="wsServerInput" placeholder="信令地址 (wss://... 或 ws://IP:3000)" value="ws://localhost:3000">
-                <button id="connectWsBtn" style="background-color: #333; font-size: 11px; padding: 4px 8px;">连接信令</button>
+        <!-- 顶部控制与状态栏 -->
+        <header class="app-header">
+            <div class="logo-area">
+                <h1>Link+</h1>
+                <span class="sub-title">链+</span>
             </div>
-            <div style="display: flex; gap: 6px;">
-                <input type="text" id="roomIdInput" placeholder="输入房间号（如：8888）">
-                <button id="joinRoomBtn">加入房间</button>
+            <div class="room-control">
+                <input type="text" id="roomIdInput" placeholder="输入房间号 (如: 8888)" />
+                <button id="joinRoomBtn">连接并加入</button>
             </div>
-        </div>
+            <div id="connectionStatus" class="status-badge">等待连接...</div>
+        </header>
 
-        <!-- 中部消息记录与音视频容器 -->
-        <div class="chat-messages" id="chatMessages">
-            <div class="media-container" id="mediaContainer">
+        <!-- 聊天与媒体展示主区域 -->
+        <main class="main-content">
+            <!-- 音视频容器 (默认隐藏，连接后可激活) -->
+            <div id="mediaContainer" class="media-container">
                 <video id="remoteVideo" autoplay playsinline></video>
-                <video id="localVideo" autoplay playsinline muted></video>
-                <button class="call-hangup-btn" id="hangupCallBtn">结束通话</button>
-            </div>
-
-            <div class="message-container incoming">
-                <div class="message-time">刚刚</div>
-                <div class="message-row incoming">
-                    <div class="message-bubble">欢迎使用 Link+ P2P 私密直连。输入相同房间号即可开始畅聊、文件快传、发送照片、音视频通话及语音消息！</div>
+                <video id="videoElement" id="localVideo" autoplay playsinline muted style="display:none;"></video>
+                <div class="media-controls">
+                    <button id="hangupCallBtn" class="danger-btn">挂断通话</button>
                 </div>
             </div>
-        </div>
 
-        <!-- 底部输入及交互栏 -->
-        <div class="chat-footer">
-            <div class="input-bar">
-                <input type="text" id="messageInput" class="text-input" placeholder="发送加密消息..." autocomplete="off">
+            <!-- 聊天消息滚动区 -->
+            <div id="chatMessages" class="chat-messages">
+                <div class="message-container incoming">
+                    <div class="message-time">系统</div>
+                    <div class="message-row incoming">
+                        <div class="message-bubble">欢迎使用 Link+ P2P 异地直连通道。请输入相同的房间号开始。</div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- 底部输入与扩展控制区 -->
+        <footer class="app-footer">
+            <div class="input-row">
+                <button id="togglePlusBtn" class="plus-btn">+</button>
+                <input type="text" id="messageInput" placeholder="发送消息..." />
                 <button id="sendTextBtn" class="send-btn">发送</button>
-                <button class="icon-btn" id="togglePlusBtn">➕</button>
             </div>
 
-            <!-- 加号扩展面板：1.文件快传 2.发送照片 3.视频通话 4.语音通话 5.发送语音 -->
-            <div class="extension-panel" id="extensionPanel">
+            <!-- 5宫格多功能扩展面板 -->
+            <div id="extensionPanel" class="extension-panel">
                 <div class="grid-item" onclick="document.getElementById('fileInput').click()">
-                    <div class="grid-icon">📁</div>
-                    <div class="grid-label">文件快传</div>
+                    <span class="icon">📁</span>
+                    <span class="label">文件</span>
                 </div>
                 <div class="grid-item" onclick="document.getElementById('imageInput').click()">
-                    <div class="grid-icon">🖼️</div>
-                    <div class="grid-label">发送照片</div>
+                    <span class="icon">🖼️</span>
+                    <span class="label">图片</span>
                 </div>
                 <div class="grid-item" id="startVideoCallBtn">
-                    <div class="grid-icon">📹</div>
-                    <div class="grid-label">视频通话</div>
+                    <span class="icon">📹</span>
+                    <span class="label">视频</span>
                 </div>
                 <div class="grid-item" id="startVoiceCallBtn">
-                    <div class="grid-icon">📞</div>
-                    <div class="grid-label">语音通话</div>
+                    <span class="icon">📞</span>
+                    <span class="label">语音通话</span>
                 </div>
                 <div class="grid-item" id="recordVoiceBtn">
-                    <div class="grid-icon" id="recordIcon">🎤</div>
-                    <div class="grid-label" id="recordLabel">发送语音</div>
+                    <span class="icon" id="recordIcon">🎤</span>
+                    <span class="label" id="recordLabel">录音</span>
                 </div>
             </div>
-        </div>
-    </div>
 
-    <!-- 隐藏的文件和图片选择器 -->
-    <input type="file" id="fileInput" style="display: none;">
-    <input type="file" id="imageInput" accept="image/*" style="display: none;">
+            <!-- 隐藏的文件选择器 -->
+            <input type="file" id="fileInput" style="display: none;" />
+            <input type="file" id="imageInput" accept="image/*" style="display: none;" />
+        </footer>
+    </div>
 
     <script src="app.js"></script>
 </body>

@@ -1,19 +1,30 @@
-// app.js
 let ws = null;
+let peer = null;
+let conn = null;
 let pc = null;
 let dataChannel = null;
 let localStream = null;
 let mediaRecorder = null;
 let audioChunks = [];
 let isRecording = false;
+let currentRoomId = null;
+let isConnected = false;
+
+// 全球稳定公开 WebSocket 信令池
+const SIGNALING_SERVERS = [
+    'wss://free.blr2.piesocket.com/v1/room1?api_key=VCXCEuvhGcSkDPGJRN3CCogibnuCL8iljnNhF5ga&notify_self=0',
+    'wss://socketsbay.com/wss/v2/2/demo/'
+];
 
 const rtcConfig = {
-    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+    iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' },
+        { urls: 'stun:stun.stunprotocol.org:3478' }
+    ]
 };
 
 const statusEl = document.getElementById('connectionStatus');
-const wsServerInput = document.getElementById('wsServerInput');
-const connectWsBtn = document.getElementById('connectWsBtn');
 const joinBtn = document.getElementById('joinRoomBtn');
 const roomIdInput = document.getElementById('roomIdInput');
 const msgInput = document.getElementById('messageInput');
@@ -25,7 +36,7 @@ const fileInput = document.getElementById('fileInput');
 const imageInput = document.getElementById('imageInput');
 
 const mediaContainer = document.getElementById('mediaContainer');
-const localVideo = document.getElementById('localVideo');
+const localVideo = document.getElementById('videoElement');
 const remoteVideo = document.getElementById('remoteVideo');
 const startVideoCallBtn = document.getElementById('startVideoCallBtn');
 const startVoiceCallBtn = document.getElementById('startVoiceCallBtn');
@@ -37,68 +48,106 @@ const recordLabel = document.getElementById('recordLabel');
 
 function getCurrentTimeStr() {
     const now = new Date();
-    const hours = String(now.getHours()).padStart(2, '0');
-    const minutes = String(now.getMinutes()).padStart(2, '0');
-    return `${hours}:${minutes}`;
+    return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 }
 
-connectWsBtn.addEventListener('click', () => {
-    const wsUrl = wsServerInput.value.trim();
-    if (!wsUrl) return alert('请输入信令服务器地址');
-
-    if (ws) ws.close();
-
-    statusEl.innerText = '正在连接信令服务器...';
-    ws = new WebSocket(wsUrl);
-
-    ws.onopen = () => {
-        statusEl.innerText = '信令已连接，请输入房间号加入 🟢';
-    };
-
-    ws.onerror = () => {
-        statusEl.innerText = '信令连接失败 🔴';
-        alert('无法连接到信令服务器！');
-    };
-
-    ws.onclose = () => {
-        statusEl.innerText = '信令连接已断开 🔴';
-    };
-
-    ws.onmessage = async (event) => {
-        const data = JSON.parse(event.data);
-        
-        if (data.type === 'joined') {
-            statusEl.innerText = '已加入房间，等待对方...';
-            initPeerConnection(true);
-        } else if (data.type === 'full') {
-            alert('房间已满');
-        } else if (data.offer) {
-            if (!pc) initPeerConnection(false);
-            await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
-            const answer = await pc.createAnswer();
-            await pc.setLocalDescription(answer);
-            ws.send(JSON.stringify({ answer }));
-        } else if (data.answer) {
-            await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
-        } else if (data.candidate) {
-            if (pc) await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
-        }
-    };
-});
-
-connectWsBtn.click();
-
+// 加入房间，启动双信令并行兜底
 joinBtn.addEventListener('click', () => {
     const roomId = roomIdInput.value.trim();
     if (!roomId) return alert('请输入房间号');
-    if (!ws || ws.readyState !== WebSocket.OPEN) {
-        return alert('请先成功连接信令服务器！');
-    }
-    ws.send(JSON.stringify({ type: 'join', roomId }));
-    statusEl.innerText = '正在匹配房间...';
+    currentRoomId = roomId;
+    isConnected = false;
+
+    statusEl.innerText = '正在通过双通道连接全国信令网...';
+
+    // 1. 尝试 WebSocket 通道
+    tryWsSignaling(roomId);
+
+    // 2. 1.5秒后如果还没连上，启用 PeerJS 备用信令
+    setTimeout(() => {
+        if (!isConnected) {
+            tryPeerJsSignaling(roomId);
+        }
+    }, 1500);
 });
 
-function initPeerConnection(isInitiator) {
+// ---------- 信令通道一：WebSocket ----------
+function tryWsSignaling(roomId) {
+    if (ws) ws.close();
+    ws = new WebSocket(SIGNALING_SERVERS[0]);
+
+    ws.onopen = () => {
+        if (isConnected) return;
+        ws.send(JSON.stringify({ type: 'join', roomId: roomId }));
+        initPeerConnection(true, 'ws');
+    };
+
+    ws.onmessage = async (event) => {
+        try {
+            const data = JSON.parse(event.data);
+            if (data.roomId && data.roomId !== roomId) return;
+
+            if (data.offer) {
+                if (!pc) initPeerConnection(false, 'ws');
+                await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+                const answer = await pc.createAnswer();
+                await pc.setLocalDescription(answer);
+                ws.send(JSON.stringify({ type: 'signal', roomId: roomId, answer }));
+            } else if (data.answer) {
+                if (pc) await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+            } else if (data.candidate) {
+                if (pc) await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+            }
+        } catch (e) {}
+    };
+
+    ws.onerror = () => {
+        console.log('WebSocket 波动，切换备用通道');
+    };
+}
+
+// ---------- 信令通道二：PeerJS 云端兜底 ----------
+function tryPeerJsSignaling(roomId) {
+    if (isConnected) return;
+    statusEl.innerText = '正在启用 PeerJS 备用兜底通道...';
+
+    const myPeerId = 'linkplus-' + roomId + '-' + Math.floor(Math.random() * 1000);
+    const targetPeerId = 'linkplus-' + roomId;
+
+    if (peer) peer.destroy();
+    peer = new Peer(myPeerId);
+
+    peer.on('open', (id) => {
+        const callConn = peer.connect(targetPeerId);
+        setupPeerConnectionData(callConn);
+
+        peer.on('connection', (incomingConn) => {
+            setupPeerConnectionData(incomingConn);
+        });
+    });
+
+    peer.on('error', (err) => {
+        if (err.type === 'unavailable-id') {
+            const fallbackConn = new Peer().connect('linkplus-' + roomId);
+            setupPeerConnectionData(fallbackConn);
+        }
+    });
+}
+
+function setupPeerConnectionData(connection) {
+    conn = connection;
+    conn.on('open', () => {
+        isConnected = true;
+        statusEl.innerText = 'Link+ P2P 直连已建立 (通过备用兜底) 🟢';
+    });
+    conn.on('data', (data) => {
+        handleIncomingData(data);
+    });
+}
+
+// ---------- WebRTC 核心与传输逻辑 ----------
+function initPeerConnection(isInitiator, type) {
+    if (pc) pc.close();
     pc = new RTCPeerConnection(rtcConfig);
 
     pc.ontrack = (event) => {
@@ -107,18 +156,20 @@ function initPeerConnection(isInitiator) {
     };
 
     pc.onicecandidate = (event) => {
-        if (event.candidate) {
-            ws.send(JSON.stringify({ candidate: event.candidate }));
+        if (event.candidate && type === 'ws' && ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'signal', roomId: currentRoomId, candidate: event.candidate }));
         }
     };
 
-    if (isInitiator) {
+    if (isInitiator && type === 'ws') {
         dataChannel = pc.createDataChannel("link-plus-channel");
         setupDataChannel();
         pc.createOffer().then(offer => pc.setLocalDescription(offer)).then(() => {
-            ws.send(JSON.stringify({ offer: pc.localDescription }));
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ type: 'signal', roomId: currentRoomId, offer: pc.localDescription }));
+            }
         });
-    } else {
+    } else if (type === 'ws') {
         pc.ondatachannel = (event) => {
             dataChannel = event.channel;
             setupDataChannel();
@@ -128,80 +179,87 @@ function initPeerConnection(isInitiator) {
 
 function setupDataChannel() {
     dataChannel.onopen = () => {
+        isConnected = true;
         statusEl.innerText = 'Link+ P2P 直连已建立 🟢';
     };
     dataChannel.onclose = () => {
         statusEl.innerText = 'P2P直连已断开 🔴';
     };
-
-    let incomingFile = { name: '', size: 0, type: '', isImage: false, buffer: [], receivedSize: 0 };
-    let incomingAudio = { buffer: [], size: 0, receivedSize: 0 };
-
     dataChannel.onmessage = (event) => {
-        if (typeof event.data === 'string') {
-            try {
-                const msg = JSON.parse(event.data);
-                if (msg.fileMeta) {
-                    incomingFile.name = msg.name;
-                    incomingFile.size = msg.size;
-                    incomingFile.type = msg.type;
-                    incomingFile.isImage = msg.isImage || false;
-                    incomingFile.buffer = [];
-                    incomingFile.receivedSize = 0;
-                    if (!incomingFile.isImage) {
-                        appendMessage(`收到文件: ${msg.name} (${(msg.size/1024/1024).toFixed(2)}MB)`, 'incoming');
-                    }
-                    return;
-                }
-                if (msg.audioMeta) {
-                    incomingAudio.size = msg.size;
-                    incomingAudio.buffer = [];
-                    incomingAudio.receivedSize = 0;
-                    return;
-                }
-            } catch (e) {
-                appendMessage(event.data, 'incoming');
-            }
-        } else {
-            if (incomingAudio.size > 0 && incomingAudio.receivedSize < incomingAudio.size) {
-                incomingAudio.buffer.push(event.data);
-                incomingAudio.receivedSize += event.data.byteLength;
-
-                if (incomingAudio.receivedSize >= incomingAudio.size) {
-                    const blob = new Blob(incomingAudio.buffer, { type: 'audio/webm' });
-                    const audioUrl = URL.createObjectURL(blob);
-                    appendAudioMessage(audioUrl, 'incoming');
-                    incomingAudio.size = 0;
-                }
-                return;
-            }
-
-            incomingFile.buffer.push(event.data);
-            incomingFile.receivedSize += event.data.byteLength;
-
-            if (incomingFile.receivedSize >= incomingFile.size) {
-                const blob = new Blob(incomingFile.buffer, { type: incomingFile.type });
-                const url = URL.createObjectURL(blob);
-                if (incomingFile.isImage) {
-                    appendImageMessage(url, 'incoming');
-                } else {
-                    appendFileMessage(incomingFile.name, url, 'incoming');
-                }
-            }
-        }
+        handleIncomingData(event.data);
     };
 }
 
+// 统一数据处理中心（文本、图片、文件、语音）
+let incomingFile = { name: '', size: 0, type: '', isImage: false, buffer: [], receivedSize: 0 };
+let incomingAudio = { buffer: [], size: 0, receivedSize: 0 };
+
+function handleIncomingData(data) {
+    if (typeof data === 'string') {
+        try {
+            const msg = JSON.parse(data);
+            if (msg.fileMeta) {
+                incomingFile.name = msg.name;
+                incomingFile.size = msg.size;
+                incomingFile.type = msg.type;
+                incomingFile.isImage = msg.isImage || false;
+                incomingFile.buffer = [];
+                incomingFile.receivedSize = 0;
+                if (!incomingFile.isImage) {
+                    appendMessage(`收到文件: ${msg.name} (${(msg.size/1024/1024).toFixed(2)}MB)`, 'incoming');
+                }
+                return;
+            }
+            if (msg.audioMeta) {
+                incomingAudio.size = msg.size;
+                incomingAudio.buffer = [];
+                incomingAudio.receivedSize = 0;
+                return;
+            }
+        } catch (e) {
+            appendMessage(data, 'incoming');
+        }
+    } else {
+        if (incomingAudio.size > 0 && incomingAudio.receivedSize < incomingAudio.size) {
+            incomingAudio.buffer.push(data);
+            incomingAudio.receivedSize += data.byteLength;
+            if (incomingAudio.receivedSize >= incomingAudio.size) {
+                const blob = new Blob(incomingAudio.buffer, { type: 'audio/webm' });
+                appendAudioMessage(URL.createObjectURL(blob), 'incoming');
+                incomingAudio.size = 0;
+            }
+            return;
+        }
+
+        incomingFile.buffer.push(data);
+        incomingFile.receivedSize += data.byteLength;
+        if (incomingFile.receivedSize >= incomingFile.size) {
+            const blob = new Blob(incomingFile.buffer, { type: incomingFile.type });
+            const url = URL.createObjectURL(blob);
+            if (incomingFile.isImage) {
+                appendImageMessage(url, 'incoming');
+            } else {
+                appendFileMessage(incomingFile.name, url, 'incoming');
+            }
+        }
+    }
+}
+
+// 展开/收起 5宫格扩展面板
 togglePlusBtn.addEventListener('click', () => {
     extensionPanel.classList.toggle('active');
 });
 
+// 发送文本消息
 function sendTextMessage() {
     const text = msgInput.value.trim();
     if (!text) return;
-
     if (dataChannel && dataChannel.readyState === 'open') {
         dataChannel.send(text);
+        appendMessage(text, 'outgoing');
+        msgInput.value = '';
+    } else if (conn && conn.open) {
+        conn.send(text);
         appendMessage(text, 'outgoing');
         msgInput.value = '';
     } else {
@@ -210,104 +268,51 @@ function sendTextMessage() {
 }
 
 sendTextBtn.addEventListener('click', sendTextMessage);
-msgInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') sendTextMessage();
-});
+msgInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendTextMessage(); });
 
+// 图片传输
 imageInput.addEventListener('change', (e) => {
     const file = e.target.files[0];
     if (!file) return;
-
-    if (!dataChannel || dataChannel.readyState !== 'open') {
-        alert('请先建立 P2P 直连！');
-        return;
-    }
-
     extensionPanel.classList.remove('active');
-    const localUrl = URL.createObjectURL(file);
-    appendImageMessage(localUrl, 'outgoing');
+    appendImageMessage(URL.createObjectURL(file), 'outgoing');
 
-    dataChannel.send(JSON.stringify({ fileMeta: true, name: file.name, size: file.size, type: file.type, isImage: true }));
+    const meta = JSON.stringify({ fileMeta: true, name: file.name, size: file.size, type: file.type, isImage: true });
+    if (dataChannel && dataChannel.readyState === 'open') dataChannel.send(meta);
+    else if (conn && conn.open) conn.send(meta);
 
-    const chunkSize = 16384;
-    let offset = 0;
-    const reader = new FileReader();
-
-    reader.onload = (evt) => {
-        dataChannel.send(evt.target.result);
-        offset += evt.target.result.byteLength;
-        if (offset < file.size) {
-            readNextChunk();
-        }
-    };
-
-    function readNextChunk() {
-        const slice = file.slice(offset, offset + chunkSize);
-        reader.readAsArrayBuffer(slice);
-    }
-
-    readNextChunk();
+    file.arrayBuffer().then(buf => {
+        if (dataChannel && dataChannel.readyState === 'open') dataChannel.send(buf);
+        else if (conn && conn.open) conn.send(buf);
+    });
 });
 
-recordVoiceBtn.addEventListener('click', async () => {
-    if (!dataChannel || dataChannel.readyState !== 'open') {
-        alert('请先建立 P2P 直连！');
-        return;
-    }
+// 文件传输
+fileInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    extensionPanel.classList.remove('active');
+    appendMessage(`正在发送文件: ${file.name}`, 'outgoing');
 
-    if (!isRecording) {
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            mediaRecorder = new MediaRecorder(stream);
-            audioChunks = [];
+    const meta = JSON.stringify({ fileMeta: true, name: file.name, size: file.size, type: file.type, isImage: false });
+    if (dataChannel && dataChannel.readyState === 'open') dataChannel.send(meta);
+    else if (conn && conn.open) conn.send(meta);
 
-            mediaRecorder.ondataavailable = (e) => {
-                if (e.data.size > 0) audioChunks.push(e.data);
-            };
-
-            mediaRecorder.onstop = () => {
-                const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-                const localAudioUrl = URL.createObjectURL(audioBlob);
-                appendAudioMessage(localAudioUrl, 'outgoing');
-
-                dataChannel.send(JSON.stringify({ audioMeta: true, size: audioBlob.size }));
-                audioBlob.arrayBuffer().then(buffer => {
-                    dataChannel.send(buffer);
-                });
-
-                stream.getTracks().forEach(track => track.stop());
-            };
-
-            mediaRecorder.start();
-            isRecording = true;
-            recordIcon.classList.add('recording');
-            recordIcon.innerText = '⏹️';
-            recordLabel.innerText = '点击停止';
-            extensionPanel.classList.remove('active');
-        } catch (err) {
-            alert('无法获取麦克风权限');
-        }
-    } else {
-        mediaRecorder.stop();
-        isRecording = false;
-        recordIcon.classList.remove('recording');
-        recordIcon.innerText = '🎤';
-        recordLabel.innerText = '发送语音';
-    }
+    file.arrayBuffer().then(buf => {
+        if (dataChannel && dataChannel.readyState === 'open') dataChannel.send(buf);
+        else if (conn && conn.open) conn.send(buf);
+    });
 });
 
+// 语音通话与视频通话
 startVideoCallBtn.addEventListener('click', async () => {
     extensionPanel.classList.remove('active');
     try {
         localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        mediaContainer.classList.add('active');
         localVideo.srcObject = localStream;
         localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
-        mediaContainer.classList.add('active');
-        appendMessage('已发起视频通话...', 'outgoing');
-        
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
-        ws.send(JSON.stringify({ offer }));
+        appendMessage('已发起视频通话 📹', 'outgoing');
     } catch (err) {
         alert('无法获取摄像头/麦克风权限');
     }
@@ -318,12 +323,7 @@ startVoiceCallBtn.addEventListener('click', async () => {
     try {
         localStream = await navigator.mediaDevices.getUserMedia({ video: false, audio: true });
         localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
-        mediaContainer.classList.add('active');
-        appendMessage('已发起语音通话连麦...', 'outgoing');
-        
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
-        ws.send(JSON.stringify({ offer }));
+        appendMessage('已发起语音通话 📞', 'outgoing');
     } catch (err) {
         alert('无法获取麦克风权限');
     }
@@ -332,105 +332,77 @@ startVoiceCallBtn.addEventListener('click', async () => {
 hangupCallBtn.addEventListener('click', () => {
     if (localStream) {
         localStream.getTracks().forEach(track => track.stop());
-        localStream = null;
     }
     mediaContainer.classList.remove('active');
-    appendMessage('通话已结束', 'outgoing');
+    appendMessage('通话已挂断', 'incoming');
 });
 
-fileInput.addEventListener('change', (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+// 录音功能
+recordVoiceBtn.addEventListener('click', async () => {
+    if (!isRecording) {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaRecorder = new MediaRecorder(stream);
+            audioChunks = [];
+            mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+            mediaRecorder.onstop = () => {
+                const blob = new Blob(audioChunks, { type: 'audio/webm' });
+                appendAudioMessage(URL.createObjectURL(blob), 'outgoing');
 
-    if (!dataChannel || dataChannel.readyState !== 'open') {
-        alert('请先建立 P2P 直连！');
-        return;
-    }
+                const meta = JSON.stringify({ audioMeta: true, size: blob.size });
+                if (dataChannel && dataChannel.readyState === 'open') dataChannel.send(meta);
+                else if (conn && conn.open) conn.send(meta);
 
-    extensionPanel.classList.remove('active');
-    appendMessage(`正在发送文件: ${file.name}`, 'outgoing');
-
-    dataChannel.send(JSON.stringify({ fileMeta: true, name: file.name, size: file.size, type: file.type, isImage: false }));
-
-    const chunkSize = 16384;
-    let offset = 0;
-    const reader = new FileReader();
-
-    reader.onload = (evt) => {
-        dataChannel.send(evt.target.result);
-        offset += evt.target.result.byteLength;
-        if (offset < file.size) {
-            readNextChunk();
-        } else {
-            appendMessage(`文件 ${file.name} 发送完毕！`, 'outgoing');
+                blob.arrayBuffer().then(buf => {
+                    if (dataChannel && dataChannel.readyState === 'open') dataChannel.send(buf);
+                    else if (conn && conn.open) conn.send(buf);
+                });
+            };
+            mediaRecorder.start();
+            isRecording = true;
+            recordIcon.innerText = '🔴';
+            recordLabel.innerText = '停止录音';
+        } catch (e) {
+            alert('无法录音');
         }
-    };
-
-    function readNextChunk() {
-        const slice = file.slice(offset, offset + chunkSize);
-        reader.readAsArrayBuffer(slice);
+    } else {
+        mediaRecorder.stop();
+        isRecording = false;
+        recordIcon.innerText = '🎤';
+        recordLabel.innerText = '录音';
+        extensionPanel.classList.remove('active');
     }
-
-    readNextChunk();
 });
 
+// UI 渲染助手
 function appendMessage(text, type) {
-    const timeStr = getCurrentTimeStr();
     const container = document.createElement('div');
     container.className = `message-container ${type}`;
-    container.innerHTML = `
-        <div class="message-time">${timeStr}</div>
-        <div class="message-row ${type}">
-            <div class="message-bubble">${text}</div>
-        </div>
-    `;
+    container.innerHTML = `<div class="message-time">${getCurrentTimeStr()}</div><div class="message-row ${type}"><div class="message-bubble">${text}</div></div>`;
     chatMessages.appendChild(container);
     chatMessages.scrollTop = chatMessages.scrollHeight;
 }
 
 function appendImageMessage(url, type) {
-    const timeStr = getCurrentTimeStr();
     const container = document.createElement('div');
     container.className = `message-container ${type}`;
-    container.innerHTML = `
-        <div class="message-time">${timeStr}</div>
-        <div class="message-row ${type}">
-            <div class="message-bubble" style="padding: 4px;">
-                <img src="${url}" class="chat-image" onclick="window.open('${url}')">
-            </div>
-        </div>
-    `;
+    container.innerHTML = `<div class="message-time">${getCurrentTimeStr()}</div><div class="message-row ${type}"><div class="message-bubble" style="padding:4px;"><img src="${url}" class="chat-image" onclick="window.open('${url}')"></div></div>`;
     chatMessages.appendChild(container);
     chatMessages.scrollTop = chatMessages.scrollHeight;
 }
 
 function appendAudioMessage(url, type) {
-    const timeStr = getCurrentTimeStr();
     const container = document.createElement('div');
     container.className = `message-container ${type}`;
-    container.innerHTML = `
-        <div class="message-time">${timeStr}</div>
-        <div class="message-row ${type}">
-            <div class="message-bubble" style="display: flex; align-items: center; gap: 8px;">
-                <span>语音消息 🔊</span>
-                <audio src="${url}" controls style="height: 30px; width: 140px;"></audio>
-            </div>
-        </div>
-    `;
+    container.innerHTML = `<div class="message-time">${getCurrentTimeStr()}</div><div class="message-row ${type}"><div class="message-bubble" style="display:flex;align-items:center;gap:8px;"><span>语音消息 🔊</span><audio src="${url}" controls style="height:30px;width:140px;"></audio></div></div>`;
     chatMessages.appendChild(container);
     chatMessages.scrollTop = chatMessages.scrollHeight;
 }
 
 function appendFileMessage(name, url, type) {
-    const timeStr = getCurrentTimeStr();
     const container = document.createElement('div');
     container.className = `message-container ${type}`;
-    container.innerHTML = `
-        <div class="message-time">${timeStr}</div>
-        <div class="message-row ${type}">
-            <div class="message-bubble">文件接收完成：<a href="${url}" download="${name}" style="color:blue; text-decoration:underline;">点击下载 ${name}</a></div>
-        </div>
-    `;
+    container.innerHTML = `<div class="message-time">${getCurrentTimeStr()}</div><div class="message-row ${type}"><div class="message-bubble">文件接收完成：<a href="${url}" download="${name}" style="color:blue;text-decoration:underline;">点击下载 ${name}</a></div></div>`;
     chatMessages.appendChild(container);
     chatMessages.scrollTop = chatMessages.scrollHeight;
 }
