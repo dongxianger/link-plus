@@ -4,6 +4,7 @@
   padding: 0;
 }
 
+/* 视口锁死，严禁整体滚动 */
 html, body {
   width: 100%;
   height: 100%;
@@ -11,7 +12,7 @@ html, body {
   height: 100dvh;
   overflow: hidden;
   position: fixed;
-  background-color: #d8e5d6;
+  background-color: #ededed; /* 微信经典浅灰底色 */
   color: #000;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
@@ -21,16 +22,16 @@ body {
   flex-direction: column;
 }
 
-/* 顶部导航栏：平起平坐的大字与实线横线 */
+/* 顶部导航栏 */
 .wx-header {
   height: 48px;
   min-height: 48px;
-  background-color: #c8dac6;
+  background-color: #ededed;
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 0 16px;
-  border-bottom: 1px solid #b5cb88;
+  border-bottom: 1px solid #ddd;
   flex-shrink: 0;
 }
 
@@ -46,7 +47,7 @@ body {
   color: #000;
 }
 
-/* 中间聊天区 */
+/* 中间消息区 */
 #chat-box {
   flex: 1;
   min-height: 0;
@@ -77,48 +78,47 @@ body {
 }
 
 .msg.me .bubble {
-  background-color: #a8d5a2;
+  background-color: #95ec69; /* 微信绿 */
   color: #000;
 }
 
-/* 底部输入框区域 */
+/* 底部输入栏 */
 .wx-footer {
-  height: 56px;
-  min-height: 56px;
-  background-color: #c8dac6;
+  min-height: 60px;
+  background-color: #f7f7f7;
   display: flex;
   align-items: center;
-  padding: 0 12px;
+  padding: 8px 12px;
   gap: 8px;
-  border-top: 1px solid #b5cb88;
+  border-top: 1px solid #ddd;
   flex-shrink: 0;
   width: 100%;
+  z-index: 2;
 }
 
 .text-input {
   flex: 1;
-  height: 38px;
+  height: 40px;
   background-color: #fff;
-  border: 1px solid #b5cb88;
+  border: 1px solid #ddd;
   border-radius: 4px;
   color: #000;
   padding: 0 12px;
-  font-size: 14px;
+  font-size: 15px;
   outline: none;
 }
 
 .text-input:focus {
-  border-color: #4b7345;
+  border-color: #07c160;
 }
 
 .icon-btn {
-  width: 38px;
-  height: 38px;
+  width: 40px;
+  height: 40px;
   background: transparent;
   border: none;
-  color: #000;
-  font-size: 26px;
-  font-weight: bold;
+  color: #333;
+  font-size: 28px;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -129,17 +129,35 @@ body {
 }
 
 .icon-btn:active {
-  background-color: #b8ccb5;
+  background-color: #e5e5e5;
 }
 
-/* 加号弹出面板：2行3列还原 */
+.send-btn {
+  height: 36px;
+  padding: 0 12px;
+  background-color: #07c160;
+  border: none;
+  border-radius: 4px;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  flex-shrink: 0;
+  display: none;
+}
+
+.send-btn:active {
+  background-color: #06ad56;
+}
+
+/* 严格 1:1 微信风格的底部功能面板：4列网格 */
 #plus-panel {
   display: none;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
-  padding: 16px;
-  background-color: #c8dac6;
-  border-top: 1px solid #b5cb88;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px 10px;
+  padding: 20px 16px;
+  background-color: #f7f7f7;
+  border-top: 1px solid #ddd;
   flex-shrink: 0;
   width: 100%;
 }
@@ -148,31 +166,34 @@ body {
   display: grid;
 }
 
+/* 微信 1:1 图标卡片：纯白背景、大圆角、无边框、精致方正 */
 .grid-item {
-  background-color: #edf2ec;
-  padding: 12px 0;
-  border-radius: 8px;
+  background-color: #ffffff; 
+  padding: 16px 0;
+  border-radius: 14px; /* 微信标志性的大圆角 */
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
+  justify-content: center;
+  gap: 8px;
   cursor: pointer;
-  border: 1px solid #d5e0d3;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  border: none; /* 微信原版没有边框 */
+  box-shadow: none;
 }
 
 .grid-item:active {
-  background-color: #dce5db;
+  background-color: #e3e3e3;
 }
 
 .grid-icon {
-  font-size: 24px;
+  font-size: 28px;
 }
 
 .grid-label {
-  font-size: 12px;
-  color: #000;
-  font-weight: 500;
+  font-size: 11px;
+  color: #555;
+  font-weight: 400;
+  white-space: nowrap;
 }
 
 /* 视频悬浮窗及控制条 */
