@@ -1,6 +1,5 @@
 // app.js
-const ws = new WebSocket('ws://localhost:3000');
-
+let ws = null;
 let pc = null;
 let dataChannel = null;
 let localStream = null;
@@ -13,6 +12,8 @@ const rtcConfig = {
 };
 
 const statusEl = document.getElementById('connectionStatus');
+const wsServerInput = document.getElementById('wsServerInput');
+const connectWsBtn = document.getElementById('connectWsBtn');
 const joinBtn = document.getElementById('joinRoomBtn');
 const roomIdInput = document.getElementById('roomIdInput');
 const msgInput = document.getElementById('messageInput');
@@ -40,39 +41,64 @@ function getCurrentTimeStr() {
     return `${hours}:${minutes}`;
 }
 
-// 扩展面板显隐控制
-togglePlusBtn.addEventListener('click', () => {
-    extensionPanel.classList.toggle('active');
+// 动态连接信令服务器
+connectWsBtn.addEventListener('click', () => {
+    const wsUrl = wsServerInput.value.trim();
+    if (!wsUrl) return alert('请输入信令服务器地址');
+
+    if (ws) ws.close();
+
+    statusEl.innerText = '正在连接信令服务器...';
+    ws = new WebSocket(wsUrl);
+
+    ws.onopen = () => {
+        statusEl.innerText = '信令服务器已连接，请输入房间号加入 🟢';
+    };
+
+    ws.onerror = () => {
+        statusEl.innerText = '信令服务器连接失败 🔴';
+        alert('无法连接到该信令服务器，请检查地址是否正确或网络是否畅通！');
+    };
+
+    ws.onclose = () => {
+        statusEl.innerText = '信令连接已断开 🔴';
+    };
+
+    ws.onmessage = async (event) => {
+        const data = JSON.parse(event.data);
+        
+        if (data.type === 'joined') {
+            statusEl.innerText = '已加入房间，等待对方...';
+            initPeerConnection(true);
+        } else if (data.type === 'full') {
+            alert('房间已满');
+        } else if (data.offer) {
+            if (!pc) initPeerConnection(false);
+            await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+            const answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
+            ws.send(JSON.stringify({ answer }));
+        } else if (data.answer) {
+            await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+        } else if (data.candidate) {
+            if (pc) await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+        }
+    };
 });
+
+// 默认点击自动连一次输入框里的地址
+connectWsBtn.click();
 
 // 加入房间
 joinBtn.addEventListener('click', () => {
     const roomId = roomIdInput.value.trim();
     if (!roomId) return alert('请输入房间号');
-    ws.send(JSON.stringify({ type: 'join', roomId }));
-    statusEl.innerText = '正在匹配服务器...';
-});
-
-ws.onmessage = async (event) => {
-    const data = JSON.parse(event.data);
-    
-    if (data.type === 'joined') {
-        statusEl.innerText = '已加入，等待对方加入...';
-        initPeerConnection(true);
-    } else if (data.type === 'full') {
-        alert('房间已满');
-    } else if (data.offer) {
-        if (!pc) initPeerConnection(false);
-        await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
-        const answer = await pc.createAnswer();
-        await pc.setLocalDescription(answer);
-        ws.send(JSON.stringify({ answer }));
-    } else if (data.answer) {
-        await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
-    } else if (data.candidate) {
-        if (pc) await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+        return alert('请先成功连接信令服务器！');
     }
-};
+    ws.send(JSON.stringify({ type: 'join', roomId }));
+    statusEl.innerText = '正在匹配房间...';
+});
 
 function initPeerConnection(isInitiator) {
     pc = new RTCPeerConnection(rtcConfig);
@@ -107,7 +133,7 @@ function setupDataChannel() {
         statusEl.innerText = 'Link+ P2P 直连已建立 🟢';
     };
     dataChannel.onclose = () => {
-        statusEl.innerText = '连接已断开 🔴';
+        statusEl.innerText = 'P2P直连已断开 🔴';
     };
 
     let incomingFile = { name: '', size: 0, type: '', buffer: [], receivedSize: 0 };
@@ -161,7 +187,12 @@ function setupDataChannel() {
     };
 }
 
-// 发送文本消息
+// 扩展面板控制
+togglePlusBtn.addEventListener('click', () => {
+    extensionPanel.classList.toggle('active');
+});
+
+// 发送文本
 function sendTextMessage() {
     const text = msgInput.value.trim();
     if (!text) return;
@@ -171,7 +202,7 @@ function sendTextMessage() {
         appendMessage(text, 'outgoing');
         msgInput.value = '';
     } else {
-        alert('请先输入相同的房间号加入房间，并等待 P2P 直连建立！');
+        alert('请先建立 P2P 直连再发送消息！');
     }
 }
 
@@ -180,10 +211,10 @@ msgInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') sendTextMessage();
 });
 
-// 录音发送功能（点一下开始录音，再点一下停止并发送）
+// 录音发送
 recordVoiceBtn.addEventListener('click', async () => {
     if (!dataChannel || dataChannel.readyState !== 'open') {
-        alert('请先建立 P2P 直连再发送语音！');
+        alert('请先建立 P2P 直连！');
         return;
     }
 
@@ -202,13 +233,11 @@ recordVoiceBtn.addEventListener('click', async () => {
                 const localAudioUrl = URL.createObjectURL(audioBlob);
                 appendAudioMessage(localAudioUrl, 'outgoing');
 
-                // 通过 DataChannel 传给对方
                 dataChannel.send(JSON.stringify({ audioMeta: true, size: audioBlob.size }));
                 audioBlob.arrayBuffer().then(buffer => {
                     dataChannel.send(buffer);
                 });
 
-                // 关掉麦克风流
                 stream.getTracks().forEach(track => track.stop());
             };
 
@@ -219,7 +248,7 @@ recordVoiceBtn.addEventListener('click', async () => {
             recordLabel.innerText = '点击停止';
             extensionPanel.classList.remove('active');
         } catch (err) {
-            alert('无法获取麦克风录音权限');
+            alert('无法获取麦克风权限');
         }
     } else {
         mediaRecorder.stop();
@@ -265,7 +294,6 @@ startVoiceCallBtn.addEventListener('click', async () => {
     }
 });
 
-// 挂断通话
 hangupCallBtn.addEventListener('click', () => {
     if (localStream) {
         localStream.getTracks().forEach(track => track.stop());
@@ -275,13 +303,13 @@ hangupCallBtn.addEventListener('click', () => {
     appendMessage('通话已结束', 'outgoing');
 });
 
-// 万能文件快传（切片传输不限大小/格式）
+// 万能文件快传
 fileInput.addEventListener('change', (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
     if (!dataChannel || dataChannel.readyState !== 'open') {
-        alert('请先建立 P2P 直连再传文件！');
+        alert('请先建立 P2P 直连！');
         return;
     }
 
@@ -312,7 +340,6 @@ fileInput.addEventListener('change', (e) => {
     readNextChunk();
 });
 
-// UI 渲染方法
 function appendMessage(text, type) {
     const timeStr = getCurrentTimeStr();
     const container = document.createElement('div');
