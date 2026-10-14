@@ -77,7 +77,7 @@ body {
     color: #111;
 }
 
-/* 底部输入栏（将输入框宽度稍微收短一丢丢） */
+/* 底部输入栏（输入框再往里缩短一丢丢） */
 .wx-footer {
     height: 56px;
     background-color: #c8dac6;
@@ -99,8 +99,8 @@ body {
     padding: 0 12px;
     font-size: 14px;
     outline: none;
-    /* 缩小输入框最大比例，收短一丢丢 */
-    max-width: calc(100% - 52px);
+    /* 再缩短一丢丢，留出更宽裕精致的间距 */
+    max-width: calc(100% - 64px);
 }
 
 .text-input:focus {
