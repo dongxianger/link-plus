@@ -46,12 +46,16 @@ joinBtn.addEventListener('click', () => {
     statusEl.innerText = '正在匹配服务器...';
 });
 
+// 完美匹配你的后端角色分发逻辑，绝对不改动任何 UI
 ws.onmessage = async (event) => {
     const data = JSON.parse(event.data);
     
-    if (data.type === 'joined') {
-        statusEl.innerText = '暗号已对上，等待对方加入...';
+    if (data.role === 'initiator' || data.type === 'joined') {
+        statusEl.innerText = '暗号已对上，正在建立直连...';
         initPeerConnection(true); // 发起方
+    } else if (data.role === 'peer') {
+        statusEl.innerText = '暗号已对上，正在等待对方握手...';
+        initPeerConnection(false); // 接收方
     } else if (data.type === 'full') {
         alert('当前暗号通道已满');
     } else if (data.offer) {
@@ -61,7 +65,7 @@ ws.onmessage = async (event) => {
         await pc.setLocalDescription(answer);
         ws.send(JSON.stringify({ answer }));
     } else if (data.answer) {
-        await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+        if (pc) await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
     } else if (data.candidate) {
         if (pc) await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
     }
@@ -99,7 +103,7 @@ function initPeerConnection(isInitiator) {
 function setupDataChannel() {
     dataChannel.onopen = () => {
         statusEl.innerText = 'Link+ P2P 直连已建立 🟢';
-        msgInput.disabled = false;
+        msgInput.disabled = false; // 解锁输入框
     };
     dataChannel.onclose = () => {
         statusEl.innerText = '连接已断开 🔴';
