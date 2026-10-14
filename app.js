@@ -10,7 +10,6 @@ let isRecording = false;
 let currentRoomId = null;
 let isConnected = false;
 
-// 全球稳定公开 WebSocket 信令池
 const SIGNALING_SERVERS = [
     'wss://free.blr2.piesocket.com/v1/room1?api_key=VCXCEuvhGcSkDPGJRN3CCogibnuCL8iljnNhF5ga&notify_self=0',
     'wss://socketsbay.com/wss/v2/2/demo/'
@@ -51,19 +50,15 @@ function getCurrentTimeStr() {
     return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 }
 
-// 加入房间，启动双信令并行兜底
 joinBtn.addEventListener('click', () => {
     const roomId = roomIdInput.value.trim();
     if (!roomId) return alert('请输入房间号');
     currentRoomId = roomId;
     isConnected = false;
 
-    statusEl.innerText = '正在通过双通道连接全国信令网...';
-
-    // 1. 尝试 WebSocket 通道
+    statusEl.innerText = '连接中...';
     tryWsSignaling(roomId);
 
-    // 2. 1.5秒后如果还没连上，启用 PeerJS 备用信令
     setTimeout(() => {
         if (!isConnected) {
             tryPeerJsSignaling(roomId);
@@ -71,7 +66,6 @@ joinBtn.addEventListener('click', () => {
     }, 1500);
 });
 
-// ---------- 信令通道一：WebSocket ----------
 function tryWsSignaling(roomId) {
     if (ws) ws.close();
     ws = new WebSocket(SIGNALING_SERVERS[0]);
@@ -100,16 +94,11 @@ function tryWsSignaling(roomId) {
             }
         } catch (e) {}
     };
-
-    ws.onerror = () => {
-        console.log('WebSocket 波动，切换备用通道');
-    };
 }
 
-// ---------- 信令通道二：PeerJS 云端兜底 ----------
 function tryPeerJsSignaling(roomId) {
     if (isConnected) return;
-    statusEl.innerText = '正在启用 PeerJS 备用兜底通道...';
+    statusEl.innerText = '启用备用信令...';
 
     const myPeerId = 'linkplus-' + roomId + '-' + Math.floor(Math.random() * 1000);
     const targetPeerId = 'linkplus-' + roomId;
@@ -138,14 +127,13 @@ function setupPeerConnectionData(connection) {
     conn = connection;
     conn.on('open', () => {
         isConnected = true;
-        statusEl.innerText = 'Link+ P2P 直连已建立 (通过备用兜底) 🟢';
+        statusEl.innerText = '直连已建立 🟢';
     });
     conn.on('data', (data) => {
         handleIncomingData(data);
     });
 }
 
-// ---------- WebRTC 核心与传输逻辑 ----------
 function initPeerConnection(isInitiator, type) {
     if (pc) pc.close();
     pc = new RTCPeerConnection(rtcConfig);
@@ -180,17 +168,16 @@ function initPeerConnection(isInitiator, type) {
 function setupDataChannel() {
     dataChannel.onopen = () => {
         isConnected = true;
-        statusEl.innerText = 'Link+ P2P 直连已建立 🟢';
+        statusEl.innerText = '直连已建立 🟢';
     };
     dataChannel.onclose = () => {
-        statusEl.innerText = 'P2P直连已断开 🔴';
+        statusEl.innerText = '直连断开 🔴';
     };
     dataChannel.onmessage = (event) => {
         handleIncomingData(event.data);
     };
 }
 
-// 统一数据处理中心（文本、图片、文件、语音）
 let incomingFile = { name: '', size: 0, type: '', isImage: false, buffer: [], receivedSize: 0 };
 let incomingAudio = { buffer: [], size: 0, receivedSize: 0 };
 
@@ -245,12 +232,10 @@ function handleIncomingData(data) {
     }
 }
 
-// 展开/收起 5宫格扩展面板
 togglePlusBtn.addEventListener('click', () => {
     extensionPanel.classList.toggle('active');
 });
 
-// 发送文本消息
 function sendTextMessage() {
     const text = msgInput.value.trim();
     if (!text) return;
@@ -270,7 +255,6 @@ function sendTextMessage() {
 sendTextBtn.addEventListener('click', sendTextMessage);
 msgInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendTextMessage(); });
 
-// 图片传输
 imageInput.addEventListener('change', (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -287,7 +271,6 @@ imageInput.addEventListener('change', (e) => {
     });
 });
 
-// 文件传输
 fileInput.addEventListener('change', (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -304,7 +287,6 @@ fileInput.addEventListener('change', (e) => {
     });
 });
 
-// 语音通话与视频通话
 startVideoCallBtn.addEventListener('click', async () => {
     extensionPanel.classList.remove('active');
     try {
@@ -314,7 +296,7 @@ startVideoCallBtn.addEventListener('click', async () => {
         localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
         appendMessage('已发起视频通话 📹', 'outgoing');
     } catch (err) {
-        alert('无法获取摄像头/麦克风权限');
+        alert('无法获取音视频权限');
     }
 });
 
@@ -337,7 +319,6 @@ hangupCallBtn.addEventListener('click', () => {
     appendMessage('通话已挂断', 'incoming');
 });
 
-// 录音功能
 recordVoiceBtn.addEventListener('click', async () => {
     if (!isRecording) {
         try {
@@ -361,7 +342,7 @@ recordVoiceBtn.addEventListener('click', async () => {
             mediaRecorder.start();
             isRecording = true;
             recordIcon.innerText = '🔴';
-            recordLabel.innerText = '停止录音';
+            recordLabel.innerText = '停止';
         } catch (e) {
             alert('无法录音');
         }
@@ -374,7 +355,6 @@ recordVoiceBtn.addEventListener('click', async () => {
     }
 });
 
-// UI 渲染助手
 function appendMessage(text, type) {
     const container = document.createElement('div');
     container.className = `message-container ${type}`;
@@ -394,7 +374,7 @@ function appendImageMessage(url, type) {
 function appendAudioMessage(url, type) {
     const container = document.createElement('div');
     container.className = `message-container ${type}`;
-    container.innerHTML = `<div class="message-time">${getCurrentTimeStr()}</div><div class="message-row ${type}"><div class="message-bubble" style="display:flex;align-items:center;gap:8px;"><span>语音消息 🔊</span><audio src="${url}" controls style="height:30px;width:140px;"></audio></div></div>`;
+    container.innerHTML = `<div class="message-time">${getCurrentTimeStr()}</div><div class="message-row ${type}"><div class="message-bubble" style="display:flex;align-items:center;gap:8px;"><span>语音消息 🔊</span><audio src="${url}" controls style="height:30px;width:130px;"></audio></div></div>`;
     chatMessages.appendChild(container);
     chatMessages.scrollTop = chatMessages.scrollHeight;
 }

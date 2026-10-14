@@ -4,56 +4,54 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Link+ | 链+</title>
-    <!-- 引入 PeerJS 库作为信令底层备用支持 -->
+    <!-- 引入 PeerJS 作为信令备用兜底 -->
     <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="app-container">
-        <!-- 顶部控制与状态栏 -->
+        <!-- 顶部：LOGO、房间号与连接状态 -->
         <header class="app-header">
             <div class="logo-area">
                 <h1>Link+</h1>
                 <span class="sub-title">链+</span>
             </div>
             <div class="room-control">
-                <input type="text" id="roomIdInput" placeholder="输入房间号 (如: 8888)" />
-                <button id="joinRoomBtn">连接并加入</button>
+                <input type="text" id="roomIdInput" placeholder="输入房间号" />
+                <button id="joinRoomBtn">连接</button>
             </div>
-            <div id="connectionStatus" class="status-badge">等待连接...</div>
+            <div id="connectionStatus" class="status-badge">未连接</div>
         </header>
 
-        <!-- 聊天与媒体展示主区域 -->
+        <!-- 中部：聊天与音视频展示区 -->
         <main class="main-content">
-            <!-- 音视频容器 (默认隐藏，连接后可激活) -->
             <div id="mediaContainer" class="media-container">
                 <video id="remoteVideo" autoplay playsinline></video>
-                <video id="videoElement" id="localVideo" autoplay playsinline muted style="display:none;"></video>
+                <video id="videoElement" autoplay playsinline muted style="display:none;"></video>
                 <div class="media-controls">
-                    <button id="hangupCallBtn" class="danger-btn">挂断通话</button>
+                    <button id="hangupCallBtn" class="danger-btn">挂断</button>
                 </div>
             </div>
 
-            <!-- 聊天消息滚动区 -->
             <div id="chatMessages" class="chat-messages">
                 <div class="message-container incoming">
                     <div class="message-time">系统</div>
                     <div class="message-row incoming">
-                        <div class="message-bubble">欢迎使用 Link+ P2P 异地直连通道。请输入相同的房间号开始。</div>
+                        <div class="message-bubble">欢迎使用 Link+，输入相同房间号即可开始异地 P2P 直连。</div>
                     </div>
                 </div>
             </div>
         </main>
 
-        <!-- 底部输入与扩展控制区 -->
+        <!-- 底部：完美的输入框与扩展面板 -->
         <footer class="app-footer">
             <div class="input-row">
                 <button id="togglePlusBtn" class="plus-btn">+</button>
-                <input type="text" id="messageInput" placeholder="发送消息..." />
+                <input type="text" id="messageInput" placeholder="发消息..." />
                 <button id="sendTextBtn" class="send-btn">发送</button>
             </div>
 
-            <!-- 5宫格多功能扩展面板 -->
+            <!-- 5宫格多功能扩展面板 (文件、图片、视频、语音通话、录音) -->
             <div id="extensionPanel" class="extension-panel">
                 <div class="grid-item" onclick="document.getElementById('fileInput').click()">
                     <span class="icon">📁</span>
@@ -77,7 +75,6 @@
                 </div>
             </div>
 
-            <!-- 隐藏的文件选择器 -->
             <input type="file" id="fileInput" style="display: none;" />
             <input type="file" id="imageInput" accept="image/*" style="display: none;" />
         </footer>
