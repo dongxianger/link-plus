@@ -100,7 +100,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         try {
                             const remoteDesc = JSON.parse(atob(answerInput.trim()));
                             peerConnection.setRemoteDescription(new RTCSessionDescription(remoteDesc));
-                            appendMessage('[Link + P2P] 🔗 链路握手成功，已建立端到端直连！', 'me');
+                            appendMessage('[Link+ P2P] 🔗 链路握手成功，已建立端到端直连！', 'me');
                         } catch (err) {
                             alert('暗号解析失败！');
                         }
@@ -113,7 +113,7 @@ document.addEventListener('DOMContentLoaded', () => {
             peerConnection.ondatachannel = (event) => {
                 dataChannel = event.channel;
                 setupDataChannel();
-                appendMessage('[Link + P2P] 🔗 收到对方的连接请求，直连已建立！', 'peer');
+                appendMessage('[Link+ P2P] 🔗 收到对方的连接请求，直连已建立！', 'peer');
             };
             peerConnection.ontrack = (event) => {
                 handleRemoteStream(event.streams[0]);
@@ -140,7 +140,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function setupDataChannel() {
-        dataChannel.onopen = () => appendMessage('[Link + P2P] 数据通道已全速开启，可放心传输大文件/电影', 'peer');
+        dataChannel.onopen = () => appendMessage('[Link+ P2P] 数据通道已全速开启，可放心传输大文件/电影', 'peer');
         dataChannel.onmessage = (event) => {
             try {
                 const data = JSON.parse(event.data);
@@ -186,7 +186,7 @@ document.addEventListener('DOMContentLoaded', () => {
         realFileInput.addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (!file) return;
-            appendMessage(`[Link + 文件] 📄 ${file.name} (${(file.size/1024).toFixed(1)} KB) 已通过 P2P 发送`, 'me');
+            appendMessage(`[Link+ 文件] 📄 ${file.name} (${(file.size/1024).toFixed(1)} KB) 已通过 P2P 发送`, 'me');
             realFileInput.value = '';
         });
     }
@@ -204,7 +204,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const files = e.target.files;
             if (!files.length) return;
             for (let file of files) {
-                appendMessage(`[Link + 蓝光电影直传] 📤 正在通过 P2P 裸流高速传输：${file.name} (${(file.size / (1024 * 1024)).toFixed(2)} MB)`, 'me');
+                appendMessage(`[Link+ 蓝光电影直传] 📤 正在通过 P2P 裸流高速传输：${file.name} (${(file.size / (1024 * 1024)).toFixed(2)} MB)`, 'me');
             }
             realTransferInput.value = '';
         });
@@ -231,7 +231,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 视频通话：完美优化全屏状态下的浮动控制条（随时放大/缩回/切换/挂断）
     const btnVideo = document.getElementById('btn-video');
     let activeVideoContainer = null;
     let videoElementRef = null;
@@ -314,7 +313,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 e.stopPropagation();
                 isFullscreen = !isFullscreen;
                 videoContainer.classList.toggle('fullscreen', isFullscreen);
-                // 动态更新全屏/还原按钮图标提示
                 fullScreenBtn.innerText = isFullscreen ? '🗗' : '⛶';
             };
 
@@ -325,7 +323,7 @@ document.addEventListener('DOMContentLoaded', () => {
             hangupBtn.onclick = (e) => {
                 e.stopPropagation();
                 cleanupVideoCall();
-                appendMessage('[Link + 视频通话] 通话已安全结束', 'me');
+                appendMessage('[Link+ 视频通话] 通话已安全结束', 'me');
             };
 
             controlsDiv.appendChild(switchBtn);
@@ -414,7 +412,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } 
                 });
                 audioStream.getTracks().forEach(track => peerConnection.addTrack(track, audioStream));
-                appendMessage(`[Link + 语音通话] 📞 P2P 加密语音已实时接通`, 'me');
+                appendMessage(`[Link+ 语音通话] 📞 P2P 加密语音已实时接通`, 'me');
             } catch (err) {
                 alert(`无法调用麦克风: ${err.message}`);
             }
