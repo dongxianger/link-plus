@@ -1,63 +1,77 @@
+<!-- index.html -->
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Link+ | 链+ - P2P私密直连</title>
-  <link rel="stylesheet" href="style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Link+ | 链+ - P2P私密直连</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-  <!-- 顶部导航栏：无背景色，仅一条黑线分割 -->
-  <header class="wx-header">
-    <div class="header-left-title">Link+</div>
-    <div class="header-right-credit">三藏制作</div>
-  </header>
+    <div class="app-container">
+        <!-- 顶部标题栏 -->
+        <div class="app-header">
+            <span>&lt;</span>
+            <div class="header-title" id="connectionStatus">Link+ (未连接)</div>
+            <span>···</span>
+        </div>
 
-  <!-- 中间消息展示区 -->
-  <div id="chat-box">
-    <div class="msg peer">
-      <div class="bubble">Link+ P2P引擎已就绪：点击下方加号开始连接或测试。</div>
-    </div>
-  </div>
+        <!-- 房间加入栏 -->
+        <div class="room-bar">
+            <input type="text" id="roomIdInput" placeholder="输入房间号（如：8888）">
+            <button id="joinRoomBtn">加入房间</button>
+        </div>
 
-  <!-- 输入框在功能区域上方，加号移到了右侧 -->
-  <footer class="wx-footer">
-    <input type="text" id="message-input" class="text-input" placeholder="输入消息..." autocomplete="off">
-    <!-- 发送按钮：默认隐藏，有文字时显示 -->
-    <button class="send-btn" id="send-btn" style="display: none;">发送</button>
-    <!-- 加号按钮移至右侧 -->
-    <button class="icon-btn" id="toggle-panel-btn">+</button>
-  </footer>
+        <!-- 中部消息记录与音视频容器 -->
+        <div class="chat-messages" id="chatMessages">
+            <div class="media-container" id="mediaContainer">
+                <video id="remoteVideo" autoplay playsinline></video>
+                <video id="localVideo" autoplay playsinline muted></video>
+                <button class="call-hangup-btn" id="hangupCallBtn">结束通话</button>
+            </div>
 
-  <!-- 功能面板（四布局，无卡片边框）位于输入框下方 -->
-  <div id="plus-panel">
-    <div class="grid-item" id="btn-msg">
-      <span class="grid-icon">💬</span>
-      <span class="grid-label">文字消息</span>
-    </div>
-    <div class="grid-item" id="btn-file">
-      <span class="grid-icon">📁</span>
-      <span class="grid-label">文件传输</span>
-    </div>
-    <div class="grid-item" id="btn-video">
-      <span class="grid-icon">📹</span>
-      <span class="grid-label">视频通话</span>
-    </div>
-    <div class="grid-item" id="btn-screen">
-      <span class="grid-icon">📺</span>
-      <span class="grid-label">屏幕共享</span>
-    </div>
-    <div class="grid-item" id="btn-test">
-      <span class="grid-icon">⚡</span>
-      <span class="grid-label">延迟测试</span>
-    </div>
-    <div class="grid-item" id="btn-setting">
-      <span class="grid-icon">⚙️</span>
-      <span class="grid-label">连接设置</span>
-    </div>
-  </div>
+            <div class="message-container incoming">
+                <div class="message-time">刚刚</div>
+                <div class="message-row incoming">
+                    <div class="message-bubble">欢迎使用 Link+ P2P 私密直连。输入相同房间号即可跨省畅聊、万能快传、音视频通话及发送语音消息！</div>
+                </div>
+            </div>
+        </div>
 
-  <script src="app.js"></script>
+        <!-- 底部输入及交互栏 -->
+        <div class="chat-footer">
+            <div class="input-bar">
+                <input type="text" id="messageInput" class="text-input" placeholder="发送加密消息..." autocomplete="off">
+                <button id="sendTextBtn" class="send-btn">发送</button>
+                <button class="icon-btn" id="togglePlusBtn">➕</button>
+            </div>
+
+            <!-- 加号扩展面板：文件快传、视频通话、语音通话、发送语音 -->
+            <div class="extension-panel" id="extensionPanel">
+                <div class="grid-item" onclick="document.getElementById('fileInput').click()">
+                    <div class="grid-icon">📁</div>
+                    <div class="grid-label">文件快传</div>
+                </div>
+                <div class="grid-item" id="startVideoCallBtn">
+                    <div class="grid-icon">📹</div>
+                    <div class="grid-label">视频通话</div>
+                </div>
+                <div class="grid-item" id="startVoiceCallBtn">
+                    <div class="grid-icon">📞</div>
+                    <div class="grid-label">语音通话</div>
+                </div>
+                <div class="grid-item" id="recordVoiceBtn">
+                    <div class="grid-icon" id="recordIcon">🎤</div>
+                    <div class="grid-label" id="recordLabel">发送语音</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <input type="file" id="fileInput" style="display: none;">
+
+    <!-- 核心逻辑脚本 -->
+    <script src="app.js"></script>
 </body>
 </html>
