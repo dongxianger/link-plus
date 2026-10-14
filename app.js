@@ -26,7 +26,7 @@ const startVoiceCallBtn = document.getElementById('startVoiceCallBtn');
 const hangupCallBtn = document.getElementById('hangupCallBtn');
 
 ws.onopen = () => {
-    statusEl.innerText = '信令服务器已连接，请加入房间';
+    statusEl.innerText = '信令服务器已连接，请对暗号';
 };
 
 ws.onerror = () => {
@@ -38,10 +38,10 @@ togglePlusBtn.addEventListener('click', () => {
     extensionPanel.classList.toggle('active');
 });
 
-// 加入房间
+// 对暗号连接
 joinBtn.addEventListener('click', () => {
     const roomId = roomIdInput.value.trim();
-    if (!roomId) return alert('请输入房间号');
+    if (!roomId) return alert('请输入暗号');
     ws.send(JSON.stringify({ type: 'join', roomId }));
     statusEl.innerText = '正在匹配服务器...';
 });
@@ -50,10 +50,10 @@ ws.onmessage = async (event) => {
     const data = JSON.parse(event.data);
     
     if (data.type === 'joined') {
-        statusEl.innerText = '已加入，等待对方加入...';
+        statusEl.innerText = '暗号已对上，等待对方加入...';
         initPeerConnection(true); // 发起方
     } else if (data.type === 'full') {
-        alert('房间已满');
+        alert('当前暗号通道已满');
     } else if (data.offer) {
         if (!pc) initPeerConnection(false);
         await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
